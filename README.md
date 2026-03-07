@@ -70,97 +70,142 @@ gustave-code/
 └── docker-compose.yml   # Full stack containerization
 ```
 
-## Quick Start
+## Installation
 
-### Prerequisites
+### Step 1 — Install prerequisites
 
-1. **Ollama** — [Download](https://ollama.com/download)
-2. **Python 3.11+** with pip
-3. **Node.js 18+** with npm
-4. **ChromaDB** — `pip install chromadb` or use Docker
+| Tool | Version | Download |
+|------|---------|----------|
+| **Ollama** | Latest | [ollama.com/download](https://ollama.com/download) |
+| **Python** | 3.11+ | [python.org/downloads](https://python.org/downloads) |
+| **Node.js** | 18+ | [nodejs.org](https://nodejs.org) |
+| **Git** | Any | [git-scm.com](https://git-scm.com) |
 
-### Installation
+> **Tip:** On Windows, check "Add to PATH" during Python and Node.js installation.
+
+### Step 2 — Clone the repository
 
 ```bash
-# Clone the repository
 git clone https://github.com/Inerio/my-personal-LLM.git
 cd my-personal-LLM
+```
 
-# Copy and edit environment configuration
+### Step 3 — Configure environment
+
+```bash
+# Copy the template
 cp .env.example .env
-# Edit .env — add your API keys if needed (Tavily, OpenWeatherMap)
-# For Docker: cp .env.docker .env
+```
 
-# Install backend dependencies
+Open `.env` in a text editor and configure:
+- **Required:** Nothing to change for basic usage (defaults work out of the box)
+- **Optional:** Add a [Tavily API key](https://tavily.com) for premium web search
+- **Optional:** Add an [OpenWeatherMap API key](https://openweathermap.org/api) for weather tool
+
+> For Docker deployment, use `cp .env.docker .env` instead.
+
+### Step 4 — Install dependencies
+
+**Backend (Python):**
+```bash
 cd backend
 pip install -r requirements.txt
 cd ..
+```
 
-# Install frontend dependencies
+**Frontend (Node.js):**
+```bash
 cd frontend
 npm install
 cd ..
 ```
 
-### Download models
+### Step 5 — Download and create Ollama models
 
-The Fast profile (Qwen 2.5 14B) is enough to get started. The larger models are optional.
+Make sure Ollama is running (`ollama serve` or the Ollama desktop app).
 
+**Windows — automatic setup (downloads all 3 models):**
 ```bash
-# Windows — downloads all 3 models and creates Ollama profiles:
 setup-models.bat
+```
 
-# Manual / Linux / macOS:
+**Manual / Linux / macOS:**
+
+Only the Fast profile is required to get started (~15 GB download):
+```bash
+# Download the base model
 ollama pull huihui_ai/qwen2.5-abliterate:14b-instruct-q8_0
-ollama create gustave-fast -f modelfiles/Modelfile-fast
 
-# Optional — LLaMA 3.3 70B (~43 GB RAM):
+# Create the custom profile with optimized parameters
+ollama create gustave-fast -f modelfiles/Modelfile-fast
+```
+
+Optional larger models (need more RAM):
+```bash
+# LLaMA 3.3 70B — ~43 GB download, needs ~43 GB RAM
 ollama pull huihui_ai/llama3.3-abliterated:70b-instruct-q4_K_M
 ollama create gustave-llama -f modelfiles/Modelfile-llama
 
-# Optional — Dolphin Mixtral 8x22B (~80 GB RAM):
+# Dolphin Mixtral 8x22B — ~80 GB download, needs ~80 GB RAM
 ollama pull dolphin-mixtral:8x22b
 ollama create gustave-mixtral -f modelfiles/Modelfile-mixtral
 ```
 
-### Running
+Verify your models are installed:
+```bash
+ollama list
+# Should show: gustave-fast (and gustave-llama, gustave-mixtral if installed)
+```
 
-#### Option 1: Launcher (Recommended — Windows)
+### Step 6 — Run
+
+#### Option A: Desktop Launcher (Recommended — Windows)
 
 ```bash
 pythonw launcher.py
-# Opens http://localhost:9000 — manages all services automatically
 ```
 
-The launcher starts Ollama, ChromaDB, the backend, and the frontend for you.
+This opens a control panel at **http://localhost:9000** that manages all services automatically (Ollama, ChromaDB, backend, frontend). Click "Start All" and you're ready.
 
-#### Option 2: Docker Compose
+#### Option B: Docker Compose
 
 ```bash
 cp .env.docker .env
 docker compose up --build -d
-# Frontend: http://localhost:3000
 ```
 
-#### Option 3: Manual
+Services:
+- Frontend: **http://localhost:3000**
+- Backend API: **http://localhost:8000**
+- API docs: **http://localhost:8000/docs**
+
+Stop with: `docker compose down`
+
+#### Option C: Manual (4 terminals)
 
 ```bash
-# Terminal 1 — Ollama
+# Terminal 1 — Ollama (skip if already running as a service)
 ollama serve
 
-# Terminal 2 — ChromaDB
+# Terminal 2 — ChromaDB (long-term memory)
 chroma run --host localhost --port 8001
 
-# Terminal 3 — Backend
+# Terminal 3 — Backend API
 cd backend
 uvicorn app.main:app --reload --port 8000
 
-# Terminal 4 — Frontend
+# Terminal 4 — Frontend dev server
 cd frontend
 npm start
 ```
 
 Open **http://localhost:3000** in your browser.
+
+### Verify installation
+
+1. Open **http://localhost:3000** (or **http://localhost:9000** for the launcher)
+2. The health indicator in the bottom-left should show "Ollama connecte"
+3. Type a message and press Enter — you should see a streaming response
 
 ## API Endpoints
 
