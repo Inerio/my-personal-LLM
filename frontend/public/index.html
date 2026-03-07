@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#171411" />
+    <meta name="description" content="Gustave Code — Assistant IA Personnel" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Police serif elegante — inspiration livre ancien -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Gustave Code</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              // ── Fonds : noirs chauds patines ──
+              'bg-primary': '#0c0b09',
+              'bg-secondary': '#171411',
+              'bg-tertiary': '#231f1a',
+              'bg-chat': '#080705',
+
+              // ── Or antique (accent principal) ──
+              'accent': '#c9a84c',
+              'accent-hover': '#dbb960',
+              'accent-dim': '#8a7340',
+
+              // ── Texte : parchemin chaud ──
+              'text-primary': '#e4d5be',
+              'text-secondary': '#8a7d6b',
+
+              // ── Bordures : brun sombre ──
+              'border-color': '#332c24',
+
+              // ── Bulles de chat ──
+              'user-bubble': '#2a2218',
+              'assistant-bubble': '#13110e',
+            },
+            fontFamily: {
+              'display': ['"Playfair Display"', 'Georgia', 'serif'],
+            },
+          }
+        }
+      }
+    </script>
+    <style>
+      /* ── Scrollbar — brun chaud patiné ── */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: #0c0b09; }
+      ::-webkit-scrollbar-thumb { background: #332c24; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #4a3d30; }
+
+      /* ── Animation de typing ── */
+      @keyframes pulse-dot {
+        0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+        40% { transform: scale(1); opacity: 1; }
+      }
+      .typing-dot { animation: pulse-dot 1.4s ease-in-out infinite; }
+      .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+      .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+      /* ── Fade-in messages ── */
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .message-enter { animation: fadeInUp 0.3s ease-out; }
+
+      /* ── Code blocks ── */
+      pre { border-radius: 8px !important; margin: 8px 0 !important; }
+      code { font-family: 'JetBrains Mono', 'Fira Code', monospace !important; }
+
+      /* ── Lueur doree subtile sur focus ── */
+      .gold-glow:focus-within {
+        box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.25), 0 0 24px rgba(201, 168, 76, 0.06);
+      }
+
+      /* ── Trait decoratif dore ── */
+      .gold-line {
+        background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.2), transparent);
+        height: 1px;
+      }
+
+      /* ── Selection de texte doree ── */
+      ::selection {
+        background: rgba(201, 168, 76, 0.3);
+        color: #e4d5be;
+      }
+    </style>
+</head>
+<body class="bg-bg-primary text-text-primary">
+    <noscript>Vous devez activer JavaScript pour utiliser cette application.</noscript>
+    <div id="root"></div>
+</body>
+</html>

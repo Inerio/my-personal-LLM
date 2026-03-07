@@ -1,0 +1,40 @@
+# ============================================
+# Gustave Code — Dépendances Backend
+# ============================================
+
+# --- Framework Web ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+sse-starlette>=2.2.0
+python-multipart>=0.0.18
+
+# --- Base de données ---
+sqlalchemy>=2.0.36
+aiosqlite>=0.20.0
+
+# --- LangChain (orchestration IA) ---
+langchain>=0.3.14
+langchain-core>=0.3.47
+langchain-community>=0.3.14
+langchain-ollama>=0.3.0
+langchain-openai>=0.3.0
+langchain-anthropic>=0.3.3
+langgraph>=0.2.60
+
+# --- Mémoire vectorielle ---
+chromadb>=0.5.23
+langchain-chroma>=0.2.0
+
+# --- Outils ---
+tavily-python>=0.5.0
+duckduckgo-search>=7.0.0
+numexpr>=2.10.0
+wikipedia>=1.4.0
+
+# --- Utilitaires ---
+python-dotenv>=1.0.1
+httpx>=0.28.0
+aiohttp>=3.11.0
+tiktoken>=0.8.0

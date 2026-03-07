@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gustave Code — Panneau de controle</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230c0b09'/%3E%3Crect x='2' y='2' width='60' height='60' rx='10' fill='none' stroke='%23c9a84c' stroke-width='1.5' opacity='0.3'/%3E%3Ctext x='32' y='48' font-family='Georgia,serif' font-size='48' font-weight='bold' fill='%23c9a84c' text-anchor='middle'%3EG%3C/text%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0c0b09;
+            color: #e4d5be;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 36px;
+        }
+
+        /* -- Scrollbar chaleureuse -- */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #332c24; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a4035; }
+
+        /* -- Selection doree -- */
+        ::selection { background: rgba(201, 168, 76, 0.25); color: #e4d5be; }
+
+        .container {
+            width: 960px;
+            background: #171411;
+            border-radius: 16px;
+            border: 1px solid #332c24;
+            padding: 28px 32px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 80px rgba(201,168,76,0.03);
+            margin-bottom: 40px;
+        }
+        .logo { text-align: center; margin-bottom: 4px; }
+        .logo-g {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 64px;
+            font-weight: bold;
+            color: #c9a84c;
+            letter-spacing: -3px;
+            line-height: 1;
+            user-select: none;
+            text-shadow: 0 0 40px rgba(201, 168, 76, 0.15);
+        }
+
+        /* -- Ligne decorative doree -- */
+        .gold-line {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #c9a84c40, #c9a84c80, #c9a84c40, transparent);
+            margin: 8px auto 6px;
+            width: 120px;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 2px;
+            font-family: 'Playfair Display', Georgia, serif;
+            letter-spacing: 1px;
+            color: #e4d5be;
+        }
+        .subtitle { text-align: center; font-size: 13px; color: #8a7d6b; margin-bottom: 20px; }
+
+        /* -- Services -- */
+        .services { background: #0c0b09; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid #2a2318; }
+        .service-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #1e1a14; }
+        .service-row:last-child { border-bottom: none; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 12px; flex-shrink: 0; transition: background 0.3s, box-shadow 0.3s; }
+        .dot.running  { background: #c9a84c; box-shadow: 0 0 8px rgba(201,168,76,0.35); }
+        .dot.stopped  { background: #4a4035; }
+        .dot.starting { background: #dbb960; animation: blink 1s infinite; }
+        .dot.error    { background: #a03030; box-shadow: 0 0 8px rgba(160,48,48,0.35); }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .svc-name { flex: 1; font-size: 14px; font-weight: 500; color: #e4d5be; }
+        .svc-port { font-size: 12px; color: #5a5040; font-family: 'Consolas','Courier New',monospace; }
+
+        /* -- Boutons -- */
+        .buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .btn {
+            padding: 11px 0; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 6px; user-select: none;
+        }
+        .btn:active:not(:disabled) { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn-start  { background: #1a2a18; color: #7aad6c; border: 1px solid #2a3a25; }
+        .btn-start:hover:not(:disabled) { background: #223520; border-color: #3a4a30; }
+        .btn-stop   { background: #2a1818; color: #c08080; border: 1px solid #3a2525; }
+        .btn-stop:hover:not(:disabled)  { background: #351e1e; border-color: #4a3030; }
+        .btn-reload { background: #231f1a; color: #c9a84c; border: 1px solid #332c24; }
+        .btn-reload:hover:not(:disabled){ background: #2e2820; border-color: #c9a84c50; }
+        .btn-open {
+            background: #c9a84c; color: #0c0b09; grid-column: 1/-1; padding: 13px; font-size: 15px;
+            font-weight: 700; letter-spacing: 0.5px;
+            box-shadow: 0 4px 16px rgba(201,168,76,0.15);
+        }
+        .btn-open:hover:not(:disabled) { background: #dbb960; box-shadow: 0 4px 20px rgba(201,168,76,0.25); }
+        .btn-bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-quit { background: #1e1a14; color: #8a7d6b; padding: 10px; font-size: 13px; border: 1px solid #332c24; }
+        .btn-quit:hover:not(:disabled) { background: #2a2318; color: #e4d5be; border-color: #4a4035; }
+        .btn-update { background: #171411; border: 1px solid #332c24; color: #8a7d6b; padding: 10px; font-size: 13px; }
+        .btn-update:hover:not(:disabled) { background: #231f1a; color: #c9a84c; border-color: #c9a84c50; }
+
+        /* -- Barre de statut -- */
+        .status-bar { text-align: center; font-size: 12px; color: #5a5040; margin-top: 12px; min-height: 18px; transition: color 0.3s; }
+        .status-bar.busy { color: #dbb960; }
+        .status-bar.ok   { color: #c9a84c; }
+
+        /* ================================================ */
+        /* Panneau de logs                                  */
+        /* ================================================ */
+        .logs-panel {
+            margin-top: 16px;
+            background: #080705;
+            border-radius: 10px;
+            border: 1px solid #332c24;
+            overflow: hidden;
+        }
+        .logs-header {
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #8a7d6b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+        .logs-toggle {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.15s;
+        }
+        .logs-toggle:hover { color: #e4d5be; }
+        .logs-arrow {
+            display: inline-block;
+            transition: transform 0.2s;
+            font-size: 10px;
+        }
+        .logs-arrow.open { transform: rotate(90deg); }
+        .logs-badge {
+            background: #2a2318;
+            color: #8a7d6b;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+        }
+        .logs-badge.has { background: #c9a84c; color: #0c0b09; }
+        .logs-spacer { flex: 1; }
+        .logs-clear-btn {
+            background: none; border: 1px solid #332c24; color: #5a5040;
+            font-size: 11px; padding: 2px 10px; border-radius: 4px; cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .logs-clear-btn:hover { color: #8a7d6b; border-color: #4a4035; }
+        .logs-filter { display: flex; gap: 4px; }
+        .logs-filter-btn {
+            background: none; border: 1px solid transparent; color: #5a5040;
+            font-size: 10px; padding: 2px 6px; border-radius: 4px; cursor: pointer;
+            text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .logs-filter-btn:hover { color: #8a7d6b; }
+        .logs-filter-btn.active { border-color: #c9a84c; color: #c9a84c; }
+        .logs-body { display: none; border-top: 1px solid #1e1a14; }
+        .logs-body.open { display: block; }
+        .logs-scroll {
+            max-height: 380px;
+            overflow-y: auto;
+            padding: 8px 0;
+            font-family: 'Consolas', 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 11.5px;
+            line-height: 1.6;
+        }
+        .log-line { padding: 1px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 0; }
+        .log-line:hover { background: #13110e; }
+        .log-line.hidden { display: none; }
+        .log-t  { color: #3d3428; margin-right: 8px; flex-shrink: 0; }
+        .log-s  { margin-right: 8px; flex-shrink: 0; font-weight: 600; min-width: 70px; }
+        .log-m  { color: #a09580; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+        .log-s-ollama   { color: #c9a84c; }
+        .log-s-chromadb { color: #b08050; }
+        .log-s-backend  { color: #d4a04c; }
+        .log-s-frontend { color: #8aad6c; }
+        .log-s-launcher { color: #8a7d6b; }
+        .log-err .log-m { color: #c08080; }
+        .log-wrn .log-m { color: #d4b870; }
+        .log-launcher .log-m { color: #8a7d6b; font-style: italic; }
+        .logs-empty {
+            text-align: center; color: #332c24; padding: 24px;
+            font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .footer { text-align: center; font-size: 11px; color: #332c24; margin-top: 10px; }
+
+        /* -- Toast notification -- */
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #231f1a; color: #c9a84c; padding: 10px 24px;
+            border-radius: 8px; font-size: 13px; font-weight: 600;
+            border: 1px solid #332c24;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 100;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+<div class="container">
+    <div class="logo"><span class="logo-g">G</span></div>
+    <div class="gold-line"></div>
+    <h1 class="title">Gustave Code</h1>
+    <p class="subtitle">Panneau de controle</p>
+
+    <div class="services">
+        <div class="service-row"><span class="dot stopped" id="dot-ollama"></span><span class="svc-name">Ollama</span><span class="svc-port">:$OLLAMA_PORT</span></div>
+        <div class="service-row"><span class="dot stopped" id="dot-chromadb"></span><span class="svc-name">ChromaDB</span><span class="svc-port">:$CHROMADB_PORT</span></div>
+        <div class="service-row"><span class="dot stopped" id="dot-backend"></span><span class="svc-name">Backend API</span><span class="svc-port">:$BACKEND_PORT</span></div>
+        <div class="service-row"><span class="dot stopped" id="dot-frontend"></span><span class="svc-name">Frontend</span><span class="svc-port">:$FRONTEND_PORT</span></div>
+    </div>
+
+    <div class="buttons">
+        <button class="btn btn-start"  id="btn-start"  onclick="doAction('start')">&#9654; Demarrer</button>
+        <button class="btn btn-stop"   id="btn-stop"   onclick="doAction('stop')">&#9632; Arreter</button>
+        <button class="btn btn-reload" id="btn-reload" onclick="doAction('reload')">&#8635; Recharger</button>
+        <button class="btn btn-open"   id="btn-open"   onclick="openApp()">Ouvrir Gustave Code</button>
+    </div>
+    <div class="btn-bottom-row">
+        <button class="btn btn-quit"   onclick="doAction('quit')">Quitter</button>
+        <button class="btn btn-update" id="btn-update" onclick="doUpdate()">&#10227; Mettre a jour</button>
+    </div>
+
+    <div class="status-bar" id="status-bar">Services arretes &mdash; Cliquez sur Demarrer</div>
+
+    <!-- ====== PANNEAU DE LOGS ====== -->
+    <div class="logs-panel">
+        <div class="logs-header">
+            <span class="logs-toggle" onclick="toggleLogs()">
+                <span class="logs-arrow" id="logs-arrow">&#9654;</span>
+                Logs en direct
+            </span>
+            <span class="logs-badge" id="logs-badge">0</span>
+            <span class="logs-spacer"></span>
+            <div class="logs-filter" onclick="event.stopPropagation()">
+                <button class="logs-filter-btn active" data-f="launcher" onclick="setFilter('launcher',this)">Launcher</button>
+                <button class="logs-filter-btn" data-f="ollama" onclick="setFilter('ollama',this)">Ollama</button>
+                <button class="logs-filter-btn" data-f="chromadb" onclick="setFilter('chromadb',this)">ChromaDB</button>
+                <button class="logs-filter-btn" data-f="backend" onclick="setFilter('backend',this)">Backend</button>
+                <button class="logs-filter-btn" data-f="frontend" onclick="setFilter('frontend',this)">Frontend</button>
+                <button class="logs-filter-btn" data-f="error" onclick="setFilter('error',this)">Erreurs</button>
+            </div>
+            <button class="logs-clear-btn" onclick="event.stopPropagation(); clearLogs()">Effacer</button>
+        </div>
+        <div class="logs-body" id="logs-body">
+            <div class="logs-scroll" id="logs-scroll">
+                <div class="logs-empty" id="logs-empty">Aucun log — les logs apparaitront ici au demarrage</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">Fermer cet onglet arretera automatiquement tous les services</div>
+</div>
+
+<script>
+(function() {
+    var polling = null;
+    var lastLogId = 0;
+    var logsOpen = false;
+    var autoScroll = true;
+    var currentFilter = 'launcher';
+    var totalLogs = 0;
+    var fetchingLogs = false;
+    var fetchingStatus = false;
+
+    // ==== Toast ====
+    var toastTimer = null;
+    function showToast(msg, duration) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast show';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function(){ t.className = 'toast'; }, duration || 3000);
+    }
+
+    // ==== Status ====
+    function updateUI(data) {
+        var svcs = data.services;
+        var allRunning = true, allStopped = true;
+        for (var id in svcs) {
+            var dot = document.getElementById('dot-' + id);
+            if (dot) dot.className = 'dot ' + svcs[id];
+            if (svcs[id] !== 'running') allRunning = false;
+            if (svcs[id] !== 'stopped') allStopped = false;
+        }
+        var busy = data.busy;
+        document.getElementById('btn-start').disabled  = busy || allRunning;
+        document.getElementById('btn-stop').disabled   = busy || allStopped;
+        document.getElementById('btn-reload').disabled = false;  // Toujours disponible
+        document.getElementById('btn-open').disabled   = !allRunning;
+        var bar = document.getElementById('status-bar');
+        if (busy) {
+            bar.textContent = 'Operation en cours...';
+            bar.className = 'status-bar busy';
+        } else if (allRunning) {
+            bar.textContent = 'Tous les services sont actifs';
+            bar.className = 'status-bar ok';
+        } else if (allStopped) {
+            bar.textContent = 'Services arretes \u2014 Cliquez sur Demarrer';
+            bar.className = 'status-bar';
+        } else {
+            var n = 0; for (var k in svcs) if (svcs[k]==='running') n++;
+            bar.textContent = n + '/4 services actifs';
+            bar.className = 'status-bar';
+        }
+    }
+    function fetchStatus() {
+        if (fetchingStatus) return;
+        fetchingStatus = true;
+        fetch('/api/status').then(function(r){return r.json()}).then(function(data){
+            fetchingStatus = false;
+            updateUI(data);
+        }).catch(function(){
+            fetchingStatus = false;
+            document.getElementById('status-bar').textContent = 'Connexion perdue au launcher';
+            document.getElementById('status-bar').className = 'status-bar';
+        });
+    }
+
+    // ==== Actions ====
+    var actionLabels = {
+        start:  'Demarrage des services...',
+        stop:   'Arret des services...',
+        reload: 'Rechargement des services...',
+        quit:   'Arret en cours...'
+    };
+
+    function setImmediateFeedback(action) {
+        // 1. Desactiver tous les boutons instantanement
+        ['btn-start','btn-stop','btn-reload','btn-open'].forEach(function(id){
+            document.getElementById(id).disabled = true;
+        });
+
+        // 2. Status bar -> message de chargement
+        var bar = document.getElementById('status-bar');
+        bar.textContent = actionLabels[action] || 'Operation en cours...';
+        bar.className = 'status-bar busy';
+
+        // 3. Dots : montrer l'etat transitoire
+        var dots = ['dot-ollama','dot-chromadb','dot-backend','dot-frontend'];
+        if (action === 'start' || action === 'reload') {
+            dots.forEach(function(id){
+                var dot = document.getElementById(id);
+                if (dot && !dot.classList.contains('running')) {
+                    dot.className = 'dot starting';
+                }
+            });
+        } else if (action === 'stop') {
+            dots.forEach(function(id){
+                var dot = document.getElementById(id);
+                if (dot && dot.classList.contains('running')) {
+                    dot.className = 'dot starting';
+                }
+            });
+        }
+
+        // 4. Accelerer le polling temporairement (500ms au lieu de 2s)
+        clearInterval(polling);
+        polling = setInterval(function(){ fetchStatus(); fetchLogs(); }, 500);
+        // Revenir au polling normal apres 30s
+        setTimeout(function(){
+            clearInterval(polling);
+            polling = setInterval(function(){ fetchStatus(); fetchLogs(); }, 2000);
+        }, 30000);
+    }
+
+    window.doAction = function(action) {
+        if (action === 'quit' && !confirm('Arreter tous les services et quitter Gustave Code ?')) return;
+
+        // Feedback visuel INSTANTANE
+        setImmediateFeedback(action);
+
+        fetch('/api/' + action, {method:'POST'}).then(function(r){return r.json()}).then(function(){
+            if (action === 'quit') {
+                clearInterval(polling);
+                setTimeout(function(){
+                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;">'
+                        +'<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:64px;font-weight:bold;color:#c9a84c;text-shadow:0 0 40px rgba(201,168,76,0.15);">G</div>'
+                        +'<div style="color:#5a5040;margin-top:12px;font-size:14px;">Gustave Code arrete. Vous pouvez fermer cet onglet.</div></div>';
+                }, 3000);
+            }
+        }).catch(function(e){console.error(e)});
+    };
+    window.openApp = function() { window.open('http://localhost:$FRONTEND_PORT','_blank'); };
+
+    // ==== Update (restart launcher, services stay alive) ====
+    window.doUpdate = function() {
+        showToast('Mise a jour du launcher...', 5000);
+        document.getElementById('btn-update').disabled = true;
+        clearInterval(polling);
+        fetch('/api/update', {method:'POST'}).then(function(r){return r.json()}).catch(function(){});
+        // Le launcher va redemarrer — on poll jusqu'a ce qu'il revienne
+        var attempts = 0;
+        var tryReconnect = setInterval(function(){
+            attempts++;
+            if (attempts > 30) { // 15s max
+                clearInterval(tryReconnect);
+                showToast('Echec de reconnexion', 3000);
+                return;
+            }
+            fetch('/api/status').then(function(r){return r.json()}).then(function(data){
+                clearInterval(tryReconnect);
+                // Recharger la page pour avoir le nouveau HTML
+                showToast('Launcher mis a jour !', 2000);
+                setTimeout(function(){ location.reload(); }, 1000);
+            }).catch(function(){});
+        }, 500);
+    };
+
+    // ==== Logs ====
+    function escHtml(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+    function matchFilter(svc, lvl) {
+        if (currentFilter === 'all') return true;
+        if (currentFilter === 'error') return lvl === 'error';
+        return svc === currentFilter;
+    }
+
+    function fetchLogs() {
+        if (fetchingLogs) return;
+        fetchingLogs = true;
+        var afterId = lastLogId;
+        fetch('/api/logs?after=' + afterId).then(function(r){return r.json()}).then(function(data) {
+            fetchingLogs = false;
+            if (!data.logs || data.logs.length === 0) return;
+            var scroll = document.getElementById('logs-scroll');
+            var empty = document.getElementById('logs-empty');
+            if (empty) empty.remove();
+
+            data.logs.forEach(function(e) {
+                // Protection supplementaire : ignorer si deja affiche
+                if (e.id <= lastLogId) return;
+                lastLogId = e.id;
+                totalLogs++;
+                var div = document.createElement('div');
+                var cls = 'log-line';
+                if (e.lvl === 'error') cls += ' log-err';
+                else if (e.lvl === 'warn') cls += ' log-wrn';
+                if (e.svc === 'launcher') cls += ' log-launcher';
+                if (!matchFilter(e.svc, e.lvl)) cls += ' hidden';
+                div.className = cls;
+                div.setAttribute('data-svc', e.svc);
+                div.setAttribute('data-lvl', e.lvl);
+                div.innerHTML = '<span class="log-t">' + e.t + '</span>'
+                    + '<span class="log-s log-s-' + e.svc + '">' + e.svc + '</span>'
+                    + '<span class="log-m">' + escHtml(e.msg) + '</span>';
+                scroll.appendChild(div);
+            });
+
+            while (scroll.children.length > 600) scroll.removeChild(scroll.firstChild);
+
+            var badge = document.getElementById('logs-badge');
+            badge.textContent = totalLogs;
+            badge.className = totalLogs > 0 ? 'logs-badge has' : 'logs-badge';
+
+            if (autoScroll) scroll.scrollTop = scroll.scrollHeight;
+        }).catch(function(){ fetchingLogs = false; });
+    }
+
+    window.toggleLogs = function() {
+        logsOpen = !logsOpen;
+        document.getElementById('logs-body').className = logsOpen ? 'logs-body open' : 'logs-body';
+        document.getElementById('logs-arrow').className = logsOpen ? 'logs-arrow open' : 'logs-arrow';
+        if (logsOpen) {
+            var scroll = document.getElementById('logs-scroll');
+            scroll.scrollTop = scroll.scrollHeight;
+        }
+    };
+
+    window.setFilter = function(f, btn) {
+        currentFilter = f;
+        var btns = document.querySelectorAll('.logs-filter-btn');
+        btns.forEach(function(b){b.className='logs-filter-btn'});
+        btn.className = 'logs-filter-btn active';
+        var lines = document.querySelectorAll('.log-line');
+        lines.forEach(function(line) {
+            var svc = line.getAttribute('data-svc');
+            var lvl = line.getAttribute('data-lvl');
+            if (matchFilter(svc, lvl)) line.classList.remove('hidden');
+            else line.classList.add('hidden');
+        });
+    };
+
+    window.clearLogs = function() {
+        fetch('/api/logs/clear', {method:'POST'});
+        var scroll = document.getElementById('logs-scroll');
+        scroll.innerHTML = '<div class="logs-empty" id="logs-empty">Logs effaces</div>';
+        lastLogId = 0;
+        totalLogs = 0;
+        var badge = document.getElementById('logs-badge');
+        badge.textContent = '0';
+        badge.className = 'logs-badge';
+    };
+
+    document.getElementById('logs-scroll').addEventListener('scroll', function() {
+        autoScroll = (this.scrollTop + this.clientHeight >= this.scrollHeight - 30);
+    });
+
+    // ==== Heartbeat (fermer l'onglet = extinction auto des services) ====
+    // Web Worker : immune au throttling des onglets en arriere-plan.
+    // Sans Worker, Chrome ralentit setInterval a 1x/min en background,
+    // ce qui declenche le timeout cote serveur et eteint les services.
+    (function initHeartbeat() {
+        var HB_INTERVAL = 3000;
+        var origin = location.origin; // http://localhost:9000
+        try {
+            var code = 'var B="' + origin + '";' +
+                'function hb(){fetch(B+"/api/heartbeat",{method:"POST"}).catch(function(){});}' +
+                'hb();setInterval(hb,' + HB_INTERVAL + ');';
+            var w = new Worker(URL.createObjectURL(new Blob([code],{type:'application/javascript'})));
+            // Nettoyage si le Worker plante
+            w.onerror = function() { fallback(); };
+        } catch(e) { fallback(); }
+        function fallback() {
+            // Fallback classique si Web Worker indisponible
+            function sendHeartbeat() { fetch('/api/heartbeat',{method:'POST'}).catch(function(){}); }
+            sendHeartbeat();
+            setInterval(sendHeartbeat, HB_INTERVAL);
+        }
+    })();
+
+    // ==== Polling ====
+    fetchStatus(); fetchLogs();
+    polling = setInterval(function(){ fetchStatus(); fetchLogs(); }, 2000);
+})();
+</script>
+</body>
+</html>
