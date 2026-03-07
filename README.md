@@ -64,7 +64,7 @@ gustave-code/
 │       ├── App.jsx
 │       ├── hooks/useChat.js   # SSE streaming + background support
 │       ├── components/        # ChatWindow, Sidebar, InputBar, etc.
-│       └── api/client.js      # Axios + EventSource
+│       └── api/client.js      # Axios + Fetch SSE
 ├── modelfiles/          # Custom Ollama model profiles
 ├── data/                # ChromaDB vector store (gitignored)
 └── docker-compose.yml   # Full stack containerization
@@ -75,28 +75,21 @@ gustave-code/
 ### Prerequisites
 
 1. **Ollama** — [Download](https://ollama.com/download)
-2. **Python 3.11+** — [Download](https://python.org/downloads)
-3. **Node.js 18+** — [Download](https://nodejs.org)
+2. **Python 3.11+** with pip
+3. **Node.js 18+** with npm
 4. **ChromaDB** — `pip install chromadb` or use Docker
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/gustave-code.git
-cd gustave-code
+git clone https://github.com/Inerio/my-personal-LLM.git
+cd my-personal-LLM
 
-# Copy environment configuration
+# Copy and edit environment configuration
 cp .env.example .env
-# Edit .env with your settings (optional: add Tavily API key for premium search)
-
-# Download and create Ollama model profiles
-# Windows:
-setup-models.bat
-# Linux/macOS:
-# ollama pull huihui_ai/qwen2.5-abliterate:14b-instruct-q8_0
-# ollama create gustave-fast -f modelfiles/Modelfile-fast
-# (repeat for llama and mixtral profiles)
+# Edit .env — add your API keys if needed (Tavily, OpenWeatherMap)
+# For Docker: cp .env.docker .env
 
 # Install backend dependencies
 cd backend
@@ -109,21 +102,42 @@ npm install
 cd ..
 ```
 
-### Running
+### Download models
 
-#### Option 1: Launcher (Recommended)
+The Fast profile (Qwen 2.5 14B) is enough to get started. The larger models are optional.
 
 ```bash
-# Start the control panel — manages all services automatically
-pythonw launcher.py
-# Opens http://localhost:9000 in your browser
+# Windows — downloads all 3 models and creates Ollama profiles:
+setup-models.bat
+
+# Manual / Linux / macOS:
+ollama pull huihui_ai/qwen2.5-abliterate:14b-instruct-q8_0
+ollama create gustave-fast -f modelfiles/Modelfile-fast
+
+# Optional — LLaMA 3.3 70B (~43 GB RAM):
+ollama pull huihui_ai/llama3.3-abliterated:70b-instruct-q4_K_M
+ollama create gustave-llama -f modelfiles/Modelfile-llama
+
+# Optional — Dolphin Mixtral 8x22B (~80 GB RAM):
+ollama pull dolphin-mixtral:8x22b
+ollama create gustave-mixtral -f modelfiles/Modelfile-mixtral
 ```
 
-The launcher will start Ollama, ChromaDB, the backend, and the frontend for you.
+### Running
+
+#### Option 1: Launcher (Recommended — Windows)
+
+```bash
+pythonw launcher.py
+# Opens http://localhost:9000 — manages all services automatically
+```
+
+The launcher starts Ollama, ChromaDB, the backend, and the frontend for you.
 
 #### Option 2: Docker Compose
 
 ```bash
+cp .env.docker .env
 docker compose up --build -d
 # Frontend: http://localhost:3000
 ```
@@ -156,8 +170,9 @@ Open **http://localhost:3000** in your browser.
 | `GET` | `/health` | Service health check |
 | `GET` | `/conversations` | List all conversations |
 | `GET` | `/conversations/{id}` | Get conversation with messages |
-| `POST` | `/conversations/create` | Create new conversation |
 | `DELETE` | `/conversations/{id}` | Delete conversation |
+| `PATCH` | `/conversations/{id}/title` | Rename conversation |
+| `POST` | `/conversations/{id}/save-partial` | Save partial response on cancel |
 | `GET` | `/models` | Available Ollama models |
 | `GET` | `/models/profiles` | Configured quality profiles |
 
@@ -177,12 +192,12 @@ All settings are in `.env` (copy from `.env.example`):
 
 ## Tech Stack
 
-- **Frontend**: React 18, Axios, react-markdown, react-syntax-highlighter
-- **Backend**: FastAPI, LangChain, LangGraph, SQLAlchemy, SSE-Starlette
+- **Frontend**: React 18, Tailwind CSS, Axios, react-markdown, react-syntax-highlighter
+- **Backend**: FastAPI, LangChain, LangGraph, SQLAlchemy
 - **LLM Runtime**: Ollama (local inference)
 - **Vector Store**: ChromaDB (long-term memory)
 - **Database**: SQLite (conversations)
-- **Tools**: DuckDuckGo search, Wikipedia, calculator, datetime
+- **Tools**: DuckDuckGo search, Tavily, Wikipedia, OpenWeatherMap, calculator, datetime
 
 ## License
 
