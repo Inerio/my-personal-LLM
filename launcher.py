@@ -1,9 +1,9 @@
 """
 Gustave Code — Launcher Webapp
 Panneau de controle web pour gerer les services Gustave Code.
-Aucune dependance externe — utilise uniquement la stdlib Python.
+Aucune dépendance externe — utilise uniquement la stdlib Python.
 
-Le HTML est dans dashboard.html (modifiable a chaud).
+Le HTML est dans dashboard.html (modifiable à chaud).
 Le bouton "Mettre a jour" relance le launcher sans couper les services.
 
 Usage: pythonw.exe launcher.py
@@ -50,7 +50,7 @@ CHROMADB_PORT = 8001
 FRONTEND_PORT = 3000
 OLLAMA_PORT = 11434
 
-MAX_LOG_LINES = 800
+MAX_LOG_LINES = 2000
 
 # ============================================================
 # Etat global
@@ -68,63 +68,61 @@ SERVICES = [
 ]
 
 # ============================================================
-# Systeme de logs
+# Système de logs
 # ============================================================
 log_entries = []
 log_counter = 0
 log_lock = threading.Lock()
 
-# Anti-repetition : {(service, msg_normalise) -> timestamp}
+# Anti-répétition : {(service, msg_normalise) -> timestamp}
 _recent_msgs = {}
 _DEDUP_WINDOW = 10  # secondes
 
 
 def _normalize_for_dedup(msg):
-    """Normalise un message pour la deduplication (supprime chiffres variables)."""
+    """Normalise un message pour la déduplication (supprime chiffres variables)."""
     return re.sub(r'\d+', '#', msg.strip().lower())
 
 
 # Regex pour stripper les codes ANSI (couleurs, styles) des sorties console
 _ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
 
-# Lignes de bruit verbose a ignorer (debug llama.cpp, GGML, etc.)
+# Lignes de bruit verbose à ignorer (debug llama.cpp, GGML, etc.)
+# IMPORTANT : on GARDE visible les messages importants :
+#   - chargement/déchargement de modèles
+#   - allocation GPU/VRAM (inference compute)
+#   - démarrage des runners
+#   - erreurs de toute sorte
 _NOISE_RE = re.compile(r'|'.join([
-    # -- llama.cpp debug verbose --
-    r'^llm_load_print_meta:',     # Dizaines de lignes metadata modele
-    r'^llm_load_tensors:',        # Details chargement tenseurs
-    r'^llama_model_loader:',      # Details loader modele
-    r'^llama_kv_cache_',          # Details cache KV
-    r'^llama_new_context',        # Details creation contexte
-    r'^ggml_',                    # Backend GGML/CUDA init details
-    r'^load_tensors:',            # Chargement tenseurs
+    # -- llama.cpp debug TRÈS verbose (métadonnées internes) --
+    r'^llm_load_print_meta:',     # Dizaines de lignes metadata modèle
+    r'^llm_load_tensors:',        # Détails individuels de tenseurs
+    r'^llama_model_loader:',      # Détails loader modèle
+    r'^llama_kv_cache_',          # Détails cache KV
+    r'^load_tensors:',            # Chargement tenseurs (ligne par ligne)
     r'^print_info:',              # Debug llama.cpp
     r'^build_graph:',             # Construction graphe
     r'^common_device_',           # Params device
-    r'^system_info:',             # Info systeme llama.cpp
+    r'^system_info:',             # Info système llama.cpp
     r'^sampling\s',               # Params sampling
     r'^CPU\s*\|',                 # Table features CPU
     r'^AVX\s*=',                  # Flags CPU
-    r'^General\.architecture',    # Info architecture modele
-    r'^=====',                    # Lignes separateur
+    r'^General\.architecture',    # Info architecture modèle
+    r'^=====',                    # Lignes séparateur
     r'^\.\.\.\s*$',               # Lignes de continuation
+    # -- Ollama debug interne Go (pas informatif) --
     r'^runner\.go:\d+',           # Debug runner Go interne
     r'^server\.go:\d+',           # Debug server Go interne
-    # -- Ollama time= startup verbose --
-    r'^time=.*msg="server config"',         # Config dump (tres long)
+    # -- Ollama startup bruit (pas utile, encombre) --
+    r'^time=.*msg="server config"',         # Config dump (très long)
     r'^time=.*msg="Ollama cloud disabled',  # Info cloud
     r'^time=.*msg="total blobs',            # Compteur blobs
-    r'^time=.*msg="total unused blobs',     # Blobs inutilises
-    r'^time=.*msg="discovering available',  # Detection GPU
-    r'^time=.*msg="starting runner"',       # Lancement runner
+    r'^time=.*msg="total unused blobs',     # Blobs inutilisés
     r'^time=.*msg="experimental Vulkan',    # Info Vulkan
-    r'^time=.*msg="inference compute"',     # Details GPU/VRAM
-    r'^time=.*msg="vram-based default',     # Contexte VRAM
-    # -- Ollama access logs --
-    r'^\[GIN\]',                            # GIN HTTP access logs (spam)
-    # -- ChromaDB ASCII art logo --
-    r'^[\(\)#\s]+$',                        # Lignes de parentheses/hash (logo ChromaDB)
-    r'^Saving data to:',                     # ChromaDB data path info
-    r'^Connect to Chroma at:',               # ChromaDB connection info
+    # -- Ollama access logs HTTP (spam massif) --
+    r'^\[GIN\]',                            # GIN HTTP access logs
+    # -- ChromaDB bruit --
+    r'^[\(\)#\s]+$',                        # Lignes du logo ASCII ChromaDB
     r'^Getting started guide:',              # Lien doc ChromaDB
     r'To deploy your DB',                    # Promo Chroma Cloud
     r'^- Sign up:',                          # Promo Chroma Cloud
@@ -134,7 +132,7 @@ _NOISE_RE = re.compile(r'|'.join([
 
 
 def _is_noise(text):
-    """Retourne True si la ligne est du bruit verbose a ignorer."""
+    """Retourne True si la ligne est du bruit verbose à ignorer."""
     stripped = text.strip()
     if not stripped:
         return True
@@ -146,10 +144,10 @@ def add_log(service, level, message):
     if not message or not message.strip():
         return
     msg = message.rstrip()
-    if len(msg) > 400:
-        msg = msg[:397] + "..."
+    if len(msg) > 1000:
+        msg = msg[:997] + "..."
 
-    # Anti-repetition : ignorer si meme message du meme service dans les N dernieres secondes
+    # Anti-répétition : ignorer si meme message du meme service dans les N dernières secondes
     now = time.time()
     dedup_key = (service, _normalize_for_dedup(msg))
     last_time = _recent_msgs.get(dedup_key, 0)
@@ -157,7 +155,7 @@ def add_log(service, level, message):
         return  # Doublon recent, on ignore
     _recent_msgs[dedup_key] = now
 
-    # Nettoyage periodique du dict de dedup (eviter fuite memoire)
+    # Nettoyage périodique du dict de dedup (éviter fuite mémoire)
     if len(_recent_msgs) > 500:
         cutoff = now - _DEDUP_WINDOW * 2
         keys_to_del = [k for k, v in _recent_msgs.items() if v < cutoff]
@@ -317,16 +315,18 @@ def kill_port(port):
 def start_service(name):
     if name == "ollama":
         if is_port_in_use(OLLAMA_PORT):
-            add_log("launcher", "info", "Ollama deja actif sur :" + str(OLLAMA_PORT))
+            add_log("launcher", "info", "Ollama déjà actif sur :" + str(OLLAMA_PORT))
             return True
         if not OLLAMA_EXE.exists():
             add_log("launcher", "error", "Ollama introuvable : " + str(OLLAMA_EXE))
             return False
-        add_log("launcher", "info", "Demarrage de Ollama...")
+        add_log("launcher", "info", "Démarrage de Ollama...")
         env = os.environ.copy()
         env["OLLAMA_NUM_PARALLEL"] = "1"
         env["OLLAMA_MAX_LOADED_MODELS"] = "1"
         env["OLLAMA_KEEP_ALIVE"] = "30m"
+        env["OLLAMA_KV_CACHE_TYPE"] = "q8_0"    # KV cache quantifié (÷2 mémoire, qualité ~identique)
+        env["OLLAMA_FLASH_ATTENTION"] = "1"      # Force Flash Attention (réduit VRAM + accélère)
         proc = subprocess.Popen(
             [str(OLLAMA_EXE), "serve"],
             env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -336,14 +336,14 @@ def start_service(name):
         _start_readers("ollama", proc)
         ok = wait_for_port(OLLAMA_PORT, timeout=15)
         add_log("launcher", "info" if ok else "error",
-                "Ollama " + ("OK :" + str(OLLAMA_PORT) if ok else "ECHEC (timeout)"))
+                "Ollama " + ("OK :" + str(OLLAMA_PORT) if ok else "ÉCHEC (timeout)"))
         return ok
 
     elif name == "chromadb":
         if is_port_in_use(CHROMADB_PORT):
-            add_log("launcher", "info", "ChromaDB deja actif sur :" + str(CHROMADB_PORT))
+            add_log("launcher", "info", "ChromaDB déjà actif sur :" + str(CHROMADB_PORT))
             return True
-        add_log("launcher", "info", "Demarrage de ChromaDB...")
+        add_log("launcher", "info", "Démarrage de ChromaDB...")
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         chroma_exe = CONDA_PYTHON.parent / "Scripts" / "chroma.exe"
         if chroma_exe.exists():
@@ -362,14 +362,14 @@ def start_service(name):
         _start_readers("chromadb", proc)
         ok = wait_for_port(CHROMADB_PORT, timeout=20)
         add_log("launcher", "info" if ok else "error",
-                "ChromaDB " + ("OK :" + str(CHROMADB_PORT) if ok else "ECHEC (timeout)"))
+                "ChromaDB " + ("OK :" + str(CHROMADB_PORT) if ok else "ÉCHEC (timeout)"))
         return ok
 
     elif name == "backend":
         if is_port_in_use(BACKEND_PORT):
-            add_log("launcher", "info", "Backend deja actif sur :" + str(BACKEND_PORT))
+            add_log("launcher", "info", "Backend déjà actif sur :" + str(BACKEND_PORT))
             return True
-        add_log("launcher", "info", "Demarrage du Backend API...")
+        add_log("launcher", "info", "Démarrage du Backend API...")
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUNBUFFERED"] = "1"
@@ -383,14 +383,14 @@ def start_service(name):
         _start_readers("backend", proc)
         ok = wait_for_port(BACKEND_PORT, timeout=20)
         add_log("launcher", "info" if ok else "error",
-                "Backend " + ("OK :" + str(BACKEND_PORT) if ok else "ECHEC (timeout)"))
+                "Backend " + ("OK :" + str(BACKEND_PORT) if ok else "ÉCHEC (timeout)"))
         return ok
 
     elif name == "frontend":
         if is_port_in_use(FRONTEND_PORT):
-            add_log("launcher", "info", "Frontend deja actif sur :" + str(FRONTEND_PORT))
+            add_log("launcher", "info", "Frontend déjà actif sur :" + str(FRONTEND_PORT))
             return True
-        add_log("launcher", "info", "Demarrage du Frontend...")
+        add_log("launcher", "info", "Démarrage du Frontend...")
         env = os.environ.copy()
         env["BROWSER"] = "none"
         env["PORT"] = str(FRONTEND_PORT)
@@ -404,14 +404,14 @@ def start_service(name):
         _start_readers("frontend", proc)
         ok = wait_for_port(FRONTEND_PORT, timeout=45)
         add_log("launcher", "info" if ok else "error",
-                "Frontend " + ("OK :" + str(FRONTEND_PORT) if ok else "ECHEC (timeout)"))
+                "Frontend " + ("OK :" + str(FRONTEND_PORT) if ok else "ÉCHEC (timeout)"))
         return ok
 
     return False
 
 
 def stop_service(name):
-    add_log("launcher", "info", "Arret de " + name + "...")
+    add_log("launcher", "info", "Arrêt de " + name + "...")
 
     # 1. Tuer le processus qu'on a lance
     proc = processes.pop(name, None)
@@ -446,7 +446,7 @@ def stop_service(name):
                     break
                 time.sleep(0.3)
 
-    # 4. Verification finale
+    # 4. Vérification finale
     port_map_all = {
         "ollama": OLLAMA_PORT, "chromadb": CHROMADB_PORT,
         "backend": BACKEND_PORT, "frontend": FRONTEND_PORT,
@@ -454,7 +454,7 @@ def stop_service(name):
     port = port_map_all.get(name)
     stopped = not is_port_in_use(port) if port else True
     add_log("launcher", "info" if stopped else "error",
-            name + (" arrete" if stopped else " : port encore occupe"))
+            name + (" arrêté" if stopped else " : port encore occupé"))
 
 
 def start_all():
@@ -462,12 +462,12 @@ def start_all():
     if is_busy:
         return
     is_busy = True
-    add_log("launcher", "info", "=== Demarrage de tous les services ===")
+    add_log("launcher", "info", "=== Démarrage de tous les services ===")
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         for svc in SERVICES:
             start_service(svc["id"])
-        add_log("launcher", "info", "=== Demarrage termine ===")
+        add_log("launcher", "info", "=== Démarrage terminé ===")
     finally:
         is_busy = False
 
@@ -477,11 +477,11 @@ def stop_all():
     if is_busy:
         return
     is_busy = True
-    add_log("launcher", "info", "=== Arret de tous les services ===")
+    add_log("launcher", "info", "=== Arrêt de tous les services ===")
     try:
         for svc in reversed(SERVICES):
             stop_service(svc["id"])
-        add_log("launcher", "info", "=== Arret termine ===")
+        add_log("launcher", "info", "=== Arrêt terminé ===")
     finally:
         is_busy = False
 
@@ -499,7 +499,7 @@ def reload_all():
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         for svc in SERVICES:
             start_service(svc["id"])
-        add_log("launcher", "info", "=== Rechargement termine ===")
+        add_log("launcher", "info", "=== Rechargement terminé ===")
     finally:
         is_busy = False
 
@@ -517,7 +517,7 @@ def get_status():
 
 def cleanup():
     if is_updating:
-        return  # Pas de cleanup pendant une mise a jour
+        return  # Pas de cleanup pendant une mise à jour
     # Tuer nos processus
     for name in ["frontend", "backend", "chromadb"]:
         proc = processes.get(name)
@@ -539,7 +539,7 @@ atexit.register(cleanup)
 
 
 def _signal_handler(sig, frame):
-    _shutdown_server()  # Arret propre via le meme chemin que le heartbeat
+    _shutdown_server()  # Arrêt propre via le même chemin que le heartbeat
 
 signal.signal(signal.SIGTERM, _signal_handler)
 if hasattr(signal, "SIGBREAK"):
@@ -552,7 +552,7 @@ if hasattr(signal, "SIGBREAK"):
 
 def load_dashboard():
     """Lit dashboard.html depuis le disque et injecte les ports.
-    Lu a chaque requete => modifications HTML/CSS/JS prises en compte instantanement."""
+    Lu à chaque requête => modifications HTML/CSS/JS prises en compte instantanément."""
     try:
         raw = DASHBOARD_HTML.read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -566,7 +566,7 @@ def load_dashboard():
 
 
 # Heartbeat : le dashboard envoie un ping toutes les 3s.
-# Si plus de heartbeat pendant _HEARTBEAT_TIMEOUT => onglet ferme => shutdown auto.
+# Si plus de heartbeat pendant _HEARTBEAT_TIMEOUT => onglet fermé => shutdown auto.
 _heartbeat = {"last": 0.0, "active": False, "started": 0.0}
 _HEARTBEAT_TIMEOUT = 30  # secondes sans heartbeat => shutdown
 _shutting_down = False
@@ -593,7 +593,7 @@ _BROWSER_EXE = _find_browser_exe()
 
 def _open_browser(url, force_new=False):
     """Ouvre l'URL dans le navigateur.
-    force_new=True  => nouvelle fenetre dediee (premier lancement)
+    force_new=True  => nouvelle fenêtre dédiée (premier lancement)
     force_new=False => focalise l'onglet existant (relancement)"""
     if force_new and _BROWSER_EXE:
         try:
@@ -675,16 +675,16 @@ class LauncherHandler(http.server.BaseHTTPRequestHandler):
 
 
 def _shutdown_server():
-    """Arret complet : stoppe tous les services puis le serveur HTTP et le process."""
+    """Arrêt complet : stoppe tous les services puis le serveur HTTP et le process."""
     global _shutting_down
     if _shutting_down:
         return
     _shutting_down = True
 
-    # Filet de securite : forcer l'arret apres 30s quoi qu'il arrive
+    # Filet de sécurité : forcer l'arrêt après 30s quoi qu'il arrive
     threading.Timer(30.0, lambda: os._exit(0)).start()
 
-    add_log("launcher", "info", "=== Arret de Gustave Code ===")
+    add_log("launcher", "info", "=== Arrêt de Gustave Code ===")
     time.sleep(0.5)
 
     # Stopper chaque service (ordre inverse)
@@ -694,10 +694,10 @@ def _shutdown_server():
         except Exception:
             pass
 
-    add_log("launcher", "info", "=== Tous les services arretes ===")
+    add_log("launcher", "info", "=== Tous les services arrêtés ===")
     time.sleep(0.5)
 
-    # Arreter le serveur HTTP (debloque serve_forever dans main)
+    # Arrêter le serveur HTTP (débloque serve_forever dans main)
     if server_instance:
         try:
             server_instance.shutdown()
@@ -713,7 +713,7 @@ def _restart_launcher():
     global is_updating
     is_updating = True
     _heartbeat["active"] = False  # Reset heartbeat pendant la mise a jour
-    add_log("launcher", "info", "=== Mise a jour du launcher ===")
+    add_log("launcher", "info", "=== Mise à jour du launcher ===")
     time.sleep(0.5)
     if server_instance:
         server_instance.shutdown()
@@ -721,21 +721,21 @@ def _restart_launcher():
 
 
 def _heartbeat_watchdog():
-    """Surveille le heartbeat du dashboard. Onglet ferme => arret automatique."""
+    """Surveille le heartbeat du dashboard. Onglet fermé => arrêt automatique."""
     while True:
         time.sleep(3)
         if is_updating or _shutting_down:
             continue
         if not _heartbeat["active"]:
-            # Aucun dashboard connecte : timeout de securite 60s apres demarrage
+            # Aucun dashboard connecté : timeout de sécurité 60s après démarrage
             if _heartbeat["started"] > 0 and time.time() - _heartbeat["started"] > 60:
-                add_log("launcher", "info", "Aucun dashboard connecte — arret automatique")
+                add_log("launcher", "info", "Aucun dashboard connecté — arrêt automatique")
                 _shutdown_server()
                 break
             continue
         elapsed = time.time() - _heartbeat["last"]
         if elapsed > _HEARTBEAT_TIMEOUT:
-            add_log("launcher", "info", "Dashboard ferme — arret automatique des services")
+            add_log("launcher", "info", "Dashboard fermé — arrêt automatique des services")
             _shutdown_server()
             break
 
@@ -748,27 +748,27 @@ def main():
     global server_instance, is_updating
 
     if is_port_in_use(LAUNCHER_PORT):
-        # Launcher deja actif => focaliser l'onglet existant
+        # Launcher déjà actif => focaliser l'onglet existant
         _open_browser(f"http://localhost:{LAUNCHER_PORT}", force_new=False)
         return
 
     server_instance = http.server.HTTPServer(
         ("127.0.0.1", LAUNCHER_PORT), LauncherHandler
     )
-    add_log("launcher", "info", "Gustave Code Launcher demarre sur :" + str(LAUNCHER_PORT))
+    add_log("launcher", "info", "Gustave Code Launcher démarré sur :" + str(LAUNCHER_PORT))
     print(f"Gustave Code Launcher -> http://localhost:{LAUNCHER_PORT}")
 
-    # Detection des services deja actifs au lancement (ex: Ollama tray app Windows)
+    # Détection des services déjà actifs au lancement (ex: Ollama tray app Windows)
     for svc in SERVICES:
         if is_port_in_use(svc["port"]):
             add_log("launcher", "info",
-                     svc["name"] + " deja actif (instance externe sur :" + str(svc["port"]) + ")")
+                     svc["name"] + " déjà actif (instance externe sur :" + str(svc["port"]) + ")")
 
-    # Heartbeat watchdog : eteint tout si l'onglet dashboard est ferme
+    # Heartbeat watchdog : éteint tout si l'onglet dashboard est ferme
     _heartbeat["started"] = time.time()
     threading.Thread(target=_heartbeat_watchdog, daemon=True).start()
 
-    # Premier lancement => ouvrir dans une nouvelle fenetre dediee
+    # Premier lancement => ouvrir dans une nouvelle fenêtre dédiée
     threading.Timer(0.8, lambda: _open_browser(
         f"http://localhost:{LAUNCHER_PORT}", force_new=True
     )).start()

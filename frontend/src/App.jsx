@@ -80,6 +80,34 @@ function App() {
     newConversation();
   }, [newConversation]);
 
+  const handlePurgeAll = useCallback(async () => {
+    // Popup de confirmation avant suppression totale
+    const confirmed = window.confirm(
+      'Supprimer toutes les conversations et la mémoire ?\n\n' +
+      'Cette action est irréversible. Toutes les conversations, ' +
+      'messages et la mémoire long-terme seront effacés.'
+    );
+    if (!confirmed) return;
+
+    // 1. Annuler tout stream en cours
+    if (isStreaming) {
+      cancelStream();
+    }
+
+    // 2. Supprimer toutes les conversations + purger ChromaDB
+    try {
+      const { deleteAllConversations } = await import('./api/client');
+      const result = await deleteAllConversations();
+      console.log('[Gustave] Tout supprimé:', result);
+    } catch (err) {
+      console.error('[Gustave] Erreur suppression totale:', err);
+    }
+
+    // 3. Reset l'interface
+    newConversation();
+    setConversations([]);
+  }, [isStreaming, cancelStream, newConversation]);
+
   const handleSend = useCallback((text) => {
     send(text, selectedProfile);
   }, [send, selectedProfile]);
@@ -89,6 +117,16 @@ function App() {
     if (isStreaming) return;
     setSelectedProfile(profile);
   }, [isStreaming]);
+
+  const handleRenameConversation = useCallback(async (conversationId, newTitle) => {
+    try {
+      const { renameConversation } = await import('./api/client');
+      await renameConversation(conversationId, newTitle);
+      loadConversations();
+    } catch (err) {
+      console.error('Erreur renommage:', err);
+    }
+  }, []);
 
   const handleDeleteConversation = useCallback(async (conversationId) => {
     try {
@@ -123,6 +161,7 @@ function App() {
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
+        onRenameConversation={handleRenameConversation}
         health={health}
       />
 
@@ -143,11 +182,34 @@ function App() {
             <h1 className="text-lg font-semibold font-display tracking-wide text-accent">Gustave Code</h1>
           </div>
 
-          <ProfileSelector
-            selectedProfile={selectedProfile}
-            onSelectProfile={handleProfileChange}
-            disabled={isStreaming}
-          />
+          <div className="flex items-center gap-2">
+            {/* Bouton tout effacer (conversations + mémoire) */}
+            <button
+              onClick={handlePurgeAll}
+              disabled={conversations.length === 0}
+              className={`
+                p-2 rounded-lg border border-border-color bg-bg-tertiary/50
+                transition-all duration-150
+                ${conversations.length === 0
+                  ? 'opacity-25 cursor-not-allowed'
+                  : 'hover:bg-bg-tertiary hover:border-red-500/30 cursor-pointer'
+                }
+              `}
+              title="Tout effacer (conversations + mémoire)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary">
+                <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
+                <path d="M22 21H7"/>
+                <path d="m5 11 9 9"/>
+              </svg>
+            </button>
+
+            <ProfileSelector
+              selectedProfile={selectedProfile}
+              onSelectProfile={handleProfileChange}
+              disabled={isStreaming}
+            />
+          </div>
         </header>
 
         {/* Messages */}

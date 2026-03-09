@@ -106,7 +106,7 @@ class ModelResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    """Reponse du health check."""
+    """Réponse du health check."""
     status: str = "ok"
     ollama_connected: bool = False
     database_connected: bool = False

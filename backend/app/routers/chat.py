@@ -35,10 +35,15 @@ _KEEPALIVE_INTERVAL = 15.0
 
 def _format_error(err_msg: str) -> str:
     """Traduire les erreurs techniques en messages lisibles."""
-    if "Connection refused" in err_msg or "ConnectError" in err_msg:
-        return "Impossible de contacter Ollama. Vérifiez qu'il est démarré."
-    if "404" in err_msg and "model" in err_msg.lower():
-        return "Modèle introuvable. Vérifiez que le modèle est installé (ollama list)."
+    low = err_msg.lower()
+    if "connection refused" in low or "connecterror" in low:
+        return "Impossible de contacter Ollama. Vérifiez qu'il est démarré via le launcher."
+    if "404" in err_msg and "model" in low:
+        return "Modèle introuvable. Vérifiez qu'il est installé (ollama list)."
+    if "timeout" in low or "timed out" in low:
+        return "Délai d'attente dépassé. Le modèle met trop de temps à répondre."
+    if "out of memory" in low or "oom" in low:
+        return "Mémoire insuffisante. Essayez un modèle plus léger (profil Rapide)."
     return err_msg
 
 

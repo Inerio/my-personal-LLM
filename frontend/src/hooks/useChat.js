@@ -33,6 +33,7 @@ const useChat = () => {
   const streamConvIdRef = useRef(null);       // quelle conversation est en stream
   const streamMsgsRef = useRef([]);           // messages accumulés du stream
   const streamToolsRef = useRef([]);          // outils actifs du stream
+  const streamProfileRef = useRef(null);      // profil utilisé pour le stream en cours
   const currentConvIdRef = useRef(null);      // miroir ref de currentConversationId
 
   // ─── Helpers ──────────────────────────────────────────────
@@ -75,6 +76,7 @@ const useChat = () => {
     streamConvIdRef.current = null;
     streamMsgsRef.current = [];
     streamToolsRef.current = [];
+    streamProfileRef.current = null;
     cancelStreamRef.current = null;
   }, []);
 
@@ -92,6 +94,7 @@ const useChat = () => {
     setStreamMetadata(null);
     streamStartTimeRef.current = Date.now();
     streamToolsRef.current = [];
+    streamProfileRef.current = profile;
 
     const userMessage = {
       id: `temp-user-${Date.now()}`,
@@ -288,13 +291,24 @@ const useChat = () => {
       cancelStreamRef.current();
     }
 
-    // Marquer le message comme terminé dans le state (plus de spinner)
+    // Marquer le message comme terminé avec métadonnées (profil, temps)
     if (lastMsg?.role === 'assistant' && lastMsg.isStreaming) {
+      const elapsed = Date.now() - (streamStartTimeRef.current || Date.now());
+      const profile = streamProfileRef.current;
+      const toolsUsed = streamToolsRef.current
+        .filter(t => t.status === 'done')
+        .map(t => t.name);
+
       updateStreamMsgs(prev => {
         const updated = [...prev];
         updated[updated.length - 1] = {
           ...updated[updated.length - 1],
           isStreaming: false,
+          metadata: {
+            profile: profile,
+            thinking_time_ms: elapsed,
+            tools_used: toolsUsed,
+          },
         };
         return updated;
       });

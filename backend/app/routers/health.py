@@ -29,7 +29,7 @@ async def health_check():
     except Exception:
         result.ollama_connected = False
 
-    # Verifier SQLite
+    # Vérifier SQLite
     try:
         from app.database.db import engine, sa_text
         with engine.connect() as conn:

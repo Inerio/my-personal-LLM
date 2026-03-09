@@ -1,10 +1,10 @@
 /**
  * Sidebar — Gustave Code
- * Liste des conversations + nouveau chat + statut systeme.
- * Theme Clair Obscure — sidebar style panneau de livre ancien.
+ * Liste des conversations + nouveau chat + statut système.
+ * Thème Clair Obscure — sidebar style panneau de livre ancien.
  */
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 const Sidebar = ({
   conversations,
@@ -16,9 +16,49 @@ const Sidebar = ({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onRenameConversation,
   health,
 }) => {
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const editInputRef = useRef(null);
+
+  // Focus l'input dès qu'on passe en mode édition
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
   if (!isOpen) return null;
+
+  const startEditing = (conv, e) => {
+    e.stopPropagation();
+    setEditingId(conv.id);
+    setEditTitle(conv.title);
+  };
+
+  const confirmEdit = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== conversations.find(c => c.id === editingId)?.title) {
+      onRenameConversation(editingId, trimmed);
+    }
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmEdit();
+    } else if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  };
 
   // Grouper les conversations par date
   const groupByDate = (convs) => {
@@ -49,12 +89,12 @@ const Sidebar = ({
           {title}
         </h3>
         {convs.map(conv => (
-          <button
+          <div
             key={conv.id}
-            onClick={() => onSelectConversation(conv.id)}
+            onClick={() => editingId !== conv.id && onSelectConversation(conv.id)}
             className={`
               w-full text-left px-3 py-2.5 rounded-lg mx-1 mb-0.5
-              text-sm truncate transition-all duration-150 group
+              text-sm transition-all duration-150 group cursor-pointer
               flex items-center justify-between
               ${conv.id === currentConversationId
                 ? 'bg-bg-tertiary text-text-primary border-l-2 border-accent/50'
@@ -62,23 +102,52 @@ const Sidebar = ({
               }
             `}
           >
-            <span className="truncate flex-1 flex items-center gap-2">
-              {conv.id === streamingConvId && (
-                <span className="flex-shrink-0 w-2 h-2 rounded-full bg-accent animate-pulse" title="Reponse en cours..." />
-              )}
-              {conv.title}
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteConversation(conv.id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all"
-              title="Supprimer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2"/></svg>
-            </button>
-          </button>
+            {/* Titre ou input d'édition */}
+            {editingId === conv.id ? (
+              <input
+                ref={editInputRef}
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                onBlur={confirmEdit}
+                className="flex-1 bg-bg-primary/80 text-text-primary text-sm px-2 py-0.5 rounded border border-accent/40 outline-none focus:border-accent"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span className="truncate flex-1 flex items-center gap-2">
+                {conv.id === streamingConvId && (
+                  <span className="flex-shrink-0 w-2 h-2 rounded-full bg-accent animate-pulse" title="Réponse en cours..." />
+                )}
+                {conv.title}
+              </span>
+            )}
+
+            {/* Boutons d'action (visibles au hover) */}
+            {editingId !== conv.id && (
+              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0 transition-all">
+                {/* Bouton éditer */}
+                <button
+                  onClick={(e) => startEditing(conv, e)}
+                  className="p-1 hover:text-accent transition-colors"
+                  title="Renommer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                {/* Bouton supprimer */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteConversation(conv.id);
+                  }}
+                  className="p-1 hover:text-red-400 transition-colors"
+                  title="Supprimer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2"/></svg>
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
     );
@@ -130,7 +199,7 @@ const Sidebar = ({
         )}
       </div>
 
-      {/* Footer — Statut systeme */}
+      {/* Footer — Statut système */}
       <div className="p-3 border-t border-border-color">
         <div className="flex items-center gap-2 text-xs text-text-secondary">
           <div className={`w-2 h-2 rounded-full ${
@@ -138,8 +207,8 @@ const Sidebar = ({
             health?.status === 'error' ? 'bg-red-800' : 'bg-amber-800'
           }`} />
           <span>
-            {health?.ollama_connected ? 'Ollama connecte' :
-             health?.status === 'error' ? 'Backend deconnecte' : 'Ollama non disponible'}
+            {health?.ollama_connected ? 'Ollama connecté' :
+             health?.status === 'error' ? 'Backend déconnecté' : 'Ollama non disponible'}
           </span>
         </div>
       </div>

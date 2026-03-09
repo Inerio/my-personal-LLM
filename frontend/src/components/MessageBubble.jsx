@@ -10,6 +10,24 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
+const PROFILE_LABELS = {
+  fast: 'Rapide',
+  llama: 'Qualité',
+  mixtral: 'Expert',
+};
+
+/**
+ * Certains modèles (Mixtral/Dolphin notamment) émettent des séquences
+ * littérales "\n" (backslash + n, 2 caractères) au lieu de vrais retours
+ * à la ligne (char 10). On les normalise avant le rendu Markdown.
+ */
+const normalizeNewlines = (text) => {
+  if (!text) return text;
+  // Remplacer les \n littéraux par de vrais retours à la ligne
+  // (ne touche pas aux \\n qui sont des backslash intentionnels)
+  return text.replace(/(?<!\\)\\n/g, '\n');
+};
+
 const MessageBubble = ({ message }) => {
   const isUser = message.role === 'user';
   const isError = message.isError;
@@ -25,18 +43,29 @@ const MessageBubble = ({ message }) => {
             : 'bg-assistant-bubble text-text-primary rounded-bl-md border border-border-color/20'
         }
       `}>
-        {/* Indicateur d'outils utilises */}
+        {/* Indicateur d'outils utilisés */}
         {!isUser && message.tools && message.tools.length > 0 && (
           <ToolIndicators tools={message.tools} />
         )}
 
-        {/* Bloc de reflexion (thinking) */}
+        {/* Bloc de réflexion (thinking) */}
         {!isUser && message.thinking && (
           <ThinkingBlock thinking={message.thinking} isStreaming={message.isStreaming} />
         )}
 
         {/* Contenu du message */}
-        {isUser ? (
+        {isError ? (
+          <div className="flex items-start gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 mt-0.5 shrink-0">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <path d="M12 9v4"/><path d="M12 17h.01"/>
+            </svg>
+            <div className="text-sm leading-relaxed">
+              <span className="font-semibold text-red-400">Erreur : </span>
+              {message.content.replace(/^Erreur:\s*/i, '')}
+            </div>
+          </div>
+        ) : isUser ? (
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
         ) : (
           <div className="prose prose-invert prose-sm max-w-none">
@@ -77,21 +106,21 @@ const MessageBubble = ({ message }) => {
                 ),
               }}
             >
-              {message.content}
+              {normalizeNewlines(message.content)}
             </ReactMarkdown>
           </div>
         )}
 
-        {/* Cursor de streaming */}
+        {/* Curseur doré de streaming — visible dès le début, suit le texte */}
         {message.isStreaming && (
           <span className="inline-block w-2 h-4 bg-accent/80 animate-pulse ml-0.5 rounded-sm" />
         )}
 
-        {/* Metadonnees */}
+        {/* Métadonnées */}
         {!isUser && message.metadata && !message.isStreaming && (
           <div className="mt-2 pt-2 border-t border-border-color/30 flex items-center gap-3 text-xs text-text-secondary/70">
             {message.metadata.profile && (
-              <span className="text-accent/70">{message.metadata.profile}</span>
+              <span className="text-accent/70">{PROFILE_LABELS[message.metadata.profile] || message.metadata.profile}</span>
             )}
             {message.metadata.thinking_time_ms && (
               <span>{(message.metadata.thinking_time_ms / 1000).toFixed(1)}s</span>
@@ -173,7 +202,7 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 
 
 /**
- * Code block simplifie pour le bloc de reflexion.
+ * Code block simplifié pour le bloc de réflexion.
  */
 const ThinkingCodeBlock = ({ node, inline, className, children, ...props }) => {
   const match = /language-(\w+)/.exec(className || '');
@@ -209,8 +238,8 @@ const ThinkingCodeBlock = ({ node, inline, className, children, ...props }) => {
 
 
 /**
- * Bloc depliable de reflexion (pensee interne du modele).
- * Tons ambre/or — parfaitement dans le theme Clair Obscure.
+ * Bloc dépliable de réflexion (pensée interne du modèle).
+ * Tons ambre/or — parfaitement dans le thème Clair Obscure.
  */
 const ThinkingBlock = ({ thinking, isStreaming }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -233,9 +262,9 @@ const ThinkingBlock = ({ thinking, isStreaming }) => {
         </svg>
         <span className="flex items-center gap-1.5">
           {isStreaming && !thinking.length ? (
-            <span className="animate-pulse">Reflexion en cours...</span>
+            <span className="animate-pulse">Réflexion en cours...</span>
           ) : (
-            <>Reflexion</>
+            <>Réflexion</>
           )}
         </span>
         {isStreaming && thinking && (
@@ -285,7 +314,7 @@ const ThinkingBlock = ({ thinking, isStreaming }) => {
                 ),
               }}
             >
-              {thinking}
+              {normalizeNewlines(thinking)}
             </ReactMarkdown>
             {isStreaming && (
               <span className="inline-block w-1.5 h-3 bg-accent/60 animate-pulse ml-0.5 rounded-sm" />
@@ -299,12 +328,12 @@ const ThinkingBlock = ({ thinking, isStreaming }) => {
 
 
 /**
- * Indicateurs d'outils utilises — pastilles dorees.
+ * Indicateurs d'outils utilisés — pastilles dorées.
  */
 const ToolIndicators = ({ tools }) => {
   const toolLabels = {
     web_search_tool: 'Recherche web',
-    weather_tool: 'Meteo',
+    weather_tool: 'Météo',
     wikipedia_search_tool: 'Wikipedia',
     calculator_tool: 'Calcul',
     datetime_tool: 'Date/Heure',

@@ -18,7 +18,9 @@ from app.config import (
     ModelProfile,
     PROFILE_MODEL_MAP,
     PROFILE_INFO,
-    QUALITY_INFERENCE_PARAMS,
+    PROFILE_INFERENCE_PARAMS,
+    PROFILE_TIMEOUTS,
+    PROFILE_KEEP_ALIVE,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,13 +71,22 @@ class LLMService:
         profile: ModelProfile,
         streaming: bool,
     ) -> ChatOllama:
-        """Créer une instance Ollama avec les paramètres qualité optimisés."""
+        """Créer une instance Ollama avec les paramètres optimisés par profil."""
         model_name = PROFILE_MODEL_MAP[profile]
-        params = QUALITY_INFERENCE_PARAMS.copy()
+        params = PROFILE_INFERENCE_PARAMS[profile]
+        timeout = PROFILE_TIMEOUTS.get(profile, 120)
+        keep_alive = PROFILE_KEEP_ALIVE.get(profile, "30m")
 
-        logger.info(f"Chargement modele Ollama: {model_name} (profil: {profile.value})")
+        num_thread = params.get("num_thread", 0)
 
-        return ChatOllama(
+        logger.info(
+            f"Chargement modèle Ollama: {model_name} (profil: {profile.value}) | "
+            f"ctx={params['num_ctx']} threads={num_thread or 'auto'} "
+            f"timeout={timeout}s keep_alive={keep_alive}"
+        )
+
+        # Construire les kwargs — n'inclure num_thread que s'il est > 0
+        kwargs = dict(
             model=model_name,
             base_url=self.ollama_base_url,
             streaming=streaming,
@@ -85,8 +96,13 @@ class LLMService:
             repeat_penalty=params["repeat_penalty"],
             num_ctx=params["num_ctx"],
             num_predict=params["num_predict"],
-            # Note: num_gpu et num_thread sont définis dans le Modelfile
+            timeout=timeout,
+            keep_alive=keep_alive,
         )
+        if num_thread > 0:
+            kwargs["num_thread"] = num_thread
+
+        return ChatOllama(**kwargs)
 
     def _get_openai_llm(self, streaming: bool) -> ChatOpenAI:
         """Créer une instance OpenAI (fallback cloud)."""
@@ -117,6 +133,33 @@ class LLMService:
             temperature=0.7,
             max_tokens=8192,
         )
+
+    async def unload_model(self, profile: ModelProfile) -> bool:
+        """
+        Forcer le déchargement d'un modèle Ollama de la RAM.
+        Envoie keep_alive=0 pour que Ollama libère immédiatement la mémoire.
+        Appelé quand l'utilisateur annule un stream sur un profil lourd.
+        """
+        model_name = PROFILE_MODEL_MAP.get(profile)
+        if not model_name:
+            return False
+
+        logger.info(f"Déchargement forcé du modèle: {model_name} (profil: {profile.value})")
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{self.ollama_base_url}/api/generate",
+                    json={"model": model_name, "keep_alive": 0},
+                )
+                if response.status_code == 200:
+                    logger.info(f"Modèle {model_name} déchargé avec succès")
+                    return True
+                else:
+                    logger.warning(f"Déchargement {model_name}: status {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.warning(f"Échec déchargement {model_name}: {e}")
+            return False
 
     async def check_ollama_connection(self) -> bool:
         """Vérifier que Ollama est accessible."""

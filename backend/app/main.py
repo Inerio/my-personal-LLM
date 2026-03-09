@@ -33,15 +33,15 @@ logger = logging.getLogger("gustave-code")
 async def lifespan(app: FastAPI):
     """Initialisation au démarrage et nettoyage à l'arrêt."""
     # --- Startup ---
-    logger.info("Demarrage de Gustave Code...")
+    logger.info("Démarrage de Gustave Code...")
 
     init_db()
-    logger.info("Base de donnees SQLite initialisee")
+    logger.info("Base de données SQLite initialisée")
 
     try:
         from app.services.memory_service import memory_service
         memory_service.initialize()
-        logger.info("ChromaDB (memoire long-terme) connecte")
+        logger.info("ChromaDB (mémoire long-terme) connecté")
     except Exception as e:
         logger.warning(f"ChromaDB non disponible: {e}")
 
@@ -49,20 +49,20 @@ async def lifespan(app: FastAPI):
         from app.services.llm_service import llm_service
         is_connected = await llm_service.check_ollama_connection()
         if is_connected:
-            logger.info("Ollama connecte")
+            logger.info("Ollama connecté")
         else:
-            logger.warning("Ollama non accessible — verifiez qu'il est lance")
+            logger.warning("Ollama non accessible — vérifiez qu'il est lancé")
     except Exception as e:
-        logger.warning(f"Impossible de verifier Ollama: {e}")
+        logger.warning(f"Impossible de vérifier Ollama: {e}")
 
     logger.info(f"Fournisseur LLM: {settings.llm_provider}")
-    logger.info(f"Profil par defaut: {settings.default_model_profile.value}")
-    logger.info("Gustave Code est pret")
+    logger.info(f"Profil par défaut: {settings.default_model_profile.value}")
+    logger.info("Gustave Code est prêt")
 
     yield
 
     # --- Shutdown ---
-    logger.info("Arret de Gustave Code")
+    logger.info("Arrêt de Gustave Code")
 
 
 # ============================================

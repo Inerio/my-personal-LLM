@@ -1,7 +1,7 @@
 /**
  * ThinkingIndicator — Gustave Code
- * Animation "Le modele reflechit..." avec temps ecoule et outils actifs.
- * Theme Clair Obscure — points dores pulsants.
+ * Animation "Le modèle réfléchit..." avec temps écoulé et outils actifs.
+ * Thème Clair Obscure — points dorés pulsants.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -40,11 +40,11 @@ const ThinkingIndicator = ({ activeTools }) => {
         <span className="text-sm text-text-secondary">
           {hasActiveTools
             ? 'Utilisation d\'un outil...'
-            : 'Reflexion en cours...'
+            : 'Réflexion en cours...'
           }
         </span>
 
-        {/* Temps ecoule */}
+        {/* Temps écoulé */}
         <span className="text-xs text-accent-dim/60 font-mono">
           {formatTime(elapsed)}
         </span>

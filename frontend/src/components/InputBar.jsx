@@ -1,7 +1,7 @@
 /**
  * InputBar — Gustave Code
  * Barre de saisie avec envoi, annulation et raccourcis clavier.
- * Theme Clair Obscure — input style encrier dore.
+ * Thème Clair Obscure — input style encrier doré.
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -15,7 +15,7 @@ const InputBar = ({ onSend, isStreaming, onCancel, selectedProfile, streamingEls
     textareaRef.current?.focus();
   }, []);
 
-  // Re-focus apres fin de streaming
+  // Re-focus après fin de streaming
   useEffect(() => {
     if (!isStreaming) {
       textareaRef.current?.focus();
@@ -50,8 +50,8 @@ const InputBar = ({ onSend, isStreaming, onCancel, selectedProfile, streamingEls
 
   const profileLabel = {
     fast: 'Rapide',
-    llama: 'LLaMA 3.3',
-    mixtral: 'Dolphin Mixtral',
+    llama: 'Qualité',
+    mixtral: 'Expert',
   };
 
   return (
@@ -67,9 +67,9 @@ const InputBar = ({ onSend, isStreaming, onCancel, selectedProfile, streamingEls
             placeholder={
               isStreaming
                 ? (streamingElsewhere
-                  ? 'Reponse en cours dans une autre conversation...'
-                  : 'Reponse en cours...')
-                : 'Ecrivez votre message... (Enter pour envoyer)'
+                  ? 'Réponse en cours dans une autre conversation...'
+                  : 'Réponse en cours...')
+                : 'Écrivez votre message... (Enter pour envoyer)'
             }
             disabled={isStreaming}
             rows={1}
@@ -120,7 +120,7 @@ const InputBar = ({ onSend, isStreaming, onCancel, selectedProfile, streamingEls
         {/* Info sous la barre */}
         <div className="flex items-center justify-between mt-2 px-2">
           <p className="text-xs text-text-secondary/30">
-            Shift+Enter pour retour a la ligne
+            Shift+Enter pour retour à la ligne
           </p>
           <p className="text-xs text-text-secondary/30">
             Profil actif: {profileLabel[selectedProfile] || selectedProfile}

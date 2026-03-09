@@ -53,7 +53,7 @@ def weather_tool(city: str) -> str:
             visibility = f"{visibility / 1000:.1f} km"
 
         return (
-            f"Meteo a {city_name}, {country}:\n"
+            f"Météo à {city_name}, {country}:\n"
             f"- Conditions: {description.capitalize()}\n"
             f"- Température: {temp:.1f}°C (ressenti: {feels_like:.1f}°C)\n"
             f"- Humidité: {humidity}%\n"

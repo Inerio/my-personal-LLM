@@ -15,7 +15,7 @@ Built with **React** + **FastAPI** + **LangChain** + **Ollama**.
 ## Features
 
 - **Multi-model profiles** — Switch between quality tiers on the fly:
-  - **Fast** (Qwen 2.5 14B) — Quick responses, ~30-50 tok/s
+  - **Fast** (JOSIEFIED Qwen3 8B) — Ultra-fast, 100% VRAM, ~80-100 tok/s
   - **LLaMA** (LLaMA 3.3 70B) — High quality, 128K context
   - **Mixtral** (Dolphin 8x22B) — Maximum quality MoE
 - **Streaming SSE** — Real-time token-by-token responses with thinking indicators
@@ -131,10 +131,10 @@ setup-models.bat
 
 **Manual / Linux / macOS:**
 
-Only the Fast profile is required to get started (~15 GB download):
+Only the Fast profile is required to get started (~9 GB download):
 ```bash
 # Download the base model
-ollama pull huihui_ai/qwen2.5-abliterate:14b-instruct-q8_0
+ollama pull goekdenizguelmez/JOSIEFIED-Qwen3:8b-q8_0
 
 # Create the custom profile with optimized parameters
 ollama create gustave-fast -f modelfiles/Modelfile-fast
@@ -204,7 +204,7 @@ Open **http://localhost:3000** in your browser.
 ### Verify installation
 
 1. Open **http://localhost:3000** (or **http://localhost:9000** for the launcher)
-2. The health indicator in the bottom-left should show "Ollama connecte"
+2. The health indicator in the bottom-left should show "Ollama connecté"
 3. Type a message and press Enter — you should see a streaming response
 
 ## API Endpoints

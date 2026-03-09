@@ -21,6 +21,7 @@ from app.database.db import (
     list_conversations,
     get_conversation,
     delete_conversation,
+    delete_all_conversations,
     get_conversation_messages,
     update_conversation_title,
     add_message,
@@ -30,6 +31,48 @@ from app.services.memory_service import memory_service
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+# ============================================
+# Routes NON paramétriques (avant /{conversation_id})
+# ============================================
+
+@router.delete("/memory/purge")
+async def purge_memory():
+    """
+    Purger toute la mémoire long-terme (ChromaDB).
+    Supprime l'intégralité des souvenirs de conversations passées.
+    """
+    result = memory_service.purge_all_memories()
+    logger.info(f"Purge mémoire long-terme : {result}")
+    return result
+
+
+@router.delete("/all")
+async def remove_all_conversations(db: Session = Depends(get_db)):
+    """
+    Supprimer toutes les conversations + purger la mémoire long-terme.
+    Opération nucléaire : remet tout à zéro.
+    """
+    # 1. Supprimer toutes les conversations SQLite
+    count = delete_all_conversations(db)
+
+    # 2. Purger toute la mémoire ChromaDB
+    purge_result = memory_service.purge_all_memories()
+
+    logger.info(
+        f"Suppression totale : {count} conversations supprimées, "
+        f"mémoire purgée : {purge_result}"
+    )
+    return {
+        "status": "purged",
+        "conversations_deleted": count,
+        "memory": purge_result,
+    }
+
+
+# ============================================
+# Routes CRUD conversations
+# ============================================
 
 @router.get("", response_model=list[ConversationResponse])
 async def get_conversations(
@@ -101,7 +144,7 @@ async def remove_conversation(
     # Nettoyer aussi la mémoire long-terme (ChromaDB)
     memory_service.delete_conversation_memories(conversation_id)
 
-    logger.info(f"Conversation supprimee (DB + ChromaDB): {conversation_id}")
+    logger.info(f"Conversation supprimée (DB + ChromaDB): {conversation_id}")
     return {"status": "deleted", "conversation_id": conversation_id}
 
 
@@ -130,10 +173,10 @@ async def save_partial_response(
     body: SavePartialRequest,
     db: Session = Depends(get_db),
 ):
-    """Sauvegarder une reponse partielle quand l'utilisateur annule le stream."""
+    """Sauvegarder une réponse partielle quand l'utilisateur annule le stream."""
     conv = get_conversation(db, conversation_id)
     if not conv:
-        raise HTTPException(status_code=404, detail="Conversation non trouvee")
+        raise HTTPException(status_code=404, detail="Conversation non trouvée")
 
     if not body.content.strip():
         return {"status": "skipped", "reason": "empty content"}
@@ -145,5 +188,5 @@ async def save_partial_response(
         body.content,
         thinking_content=body.thinking_content,
     )
-    logger.info(f"Reponse partielle sauvegardee: {conversation_id} ({len(body.content)} chars)")
+    logger.info(f"Réponse partielle sauvegardée: {conversation_id} ({len(body.content)} chars)")
     return {"status": "saved", "message_id": msg.id}

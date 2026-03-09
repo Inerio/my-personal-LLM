@@ -180,6 +180,16 @@ def delete_conversation(db: Session, conversation_id: str) -> bool:
     return False
 
 
+def delete_all_conversations(db: Session) -> int:
+    """Supprimer toutes les conversations et leurs messages. Retourne le nombre supprimé."""
+    count = db.query(Conversation).count()
+    if count > 0:
+        db.query(Message).delete()
+        db.query(Conversation).delete()
+        db.commit()
+    return count
+
+
 def add_message(
     db: Session,
     conversation_id: str,
@@ -248,24 +258,24 @@ def update_conversation_title(db: Session, conversation_id: str, title: str) -> 
 def _auto_migrate():
     """
     Ajoute les colonnes manquantes aux tables existantes.
-    SQLAlchemy create_all ne modifie pas les tables deja creees,
-    donc on inspecte le schema et on fait ALTER TABLE si necessaire.
+    SQLAlchemy create_all ne modifie pas les tables déjà créées,
+    donc on inspecte le schéma et on fait ALTER TABLE si nécessaire.
     """
     import logging
     logger = logging.getLogger("gustave-code")
 
     with engine.connect() as conn:
         for table_name, table in Base.metadata.tables.items():
-            # Recuperer les colonnes existantes dans la DB
+            # Récupérer les colonnes existantes dans la DB
             result = conn.execute(
                 sa_text(f"PRAGMA table_info({table_name})")
             )
             existing_cols = {row[1] for row in result}
 
-            # Verifier chaque colonne du modele
+            # Vérifier chaque colonne du modèle
             for col in table.columns:
                 if col.name not in existing_cols:
-                    # Determiner le type SQL
+                    # Déterminer le type SQL
                     col_type = col.type.compile(engine.dialect)
                     nullable = "" if col.nullable else " NOT NULL"
                     default = ""

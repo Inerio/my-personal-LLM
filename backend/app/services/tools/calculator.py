@@ -64,7 +64,7 @@ def calculator_tool(expression: str) -> str:
 
         # Limite de longueur pour éviter les abus
         if len(expr) > 500:
-            return "Expression trop longue (max 500 caracteres)"
+            return "Expression trop longue (max 500 caractères)"
 
         # Gestion des pourcentages courants
         expr = expr.replace("% de ", "/100 * ")
@@ -90,9 +90,9 @@ def calculator_tool(expression: str) -> str:
         return f"{expression} = **{result}**"
 
     except ZeroDivisionError:
-        return "Erreur: Division par zero"
+        return "Erreur: Division par zéro"
     except SyntaxError:
-        return f"Expression invalide: '{expression}'. Verifie la syntaxe."
+        return f"Expression invalide: '{expression}'. Vérifie la syntaxe."
     except Exception as e:
         logger.error(f"Erreur calcul: {e}")
         return f"Erreur de calcul: {str(e)}"

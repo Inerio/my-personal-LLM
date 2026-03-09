@@ -55,6 +55,16 @@ export const savePartialResponse = async (conversationId, content, thinkingConte
   return response.data;
 };
 
+export const purgeMemory = async () => {
+  const response = await apiClient.delete('/conversations/memory/purge');
+  return response.data;
+};
+
+export const deleteAllConversations = async () => {
+  const response = await apiClient.delete('/conversations/all');
+  return response.data;
+};
+
 // ============================================
 // Modèles & Profils
 // ============================================
@@ -82,6 +92,68 @@ export const getHealth = async () => {
 // Chat SSE Streaming
 // ============================================
 
+// Timeout de connexion initiale par profil (ms)
+// Les gros modèles mettent beaucoup plus de temps à charger
+const PROFILE_CONNECT_TIMEOUTS = {
+  fast: 60_000,       // 1 min
+  llama: 300_000,     // 5 min (CPU offloading)
+  mixtral: 600_000,   // 10 min (modèle massif)
+};
+
+// Timeout entre deux chunks SSE (ms) — si aucun chunk ni keepalive
+// pendant cette durée, on considère la connexion morte
+const STREAM_INACTIVITY_TIMEOUT = 120_000; // 2 min
+
+/**
+ * Diagnostiquer la cause d'une erreur en vérifiant l'état des services.
+ * Appelé après un timeout ou une perte de connexion pour donner un
+ * message précis à l'utilisateur.
+ */
+const diagnoseError = async (profile) => {
+  try {
+    const resp = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) {
+      return 'Le serveur backend ne répond plus. Relancez les services depuis le launcher.';
+    }
+    const health = await resp.json();
+
+    if (!health.ollama_connected) {
+      return (
+        'Ollama a crashé (probablement un manque de mémoire). ' +
+        'Relancez Ollama depuis le launcher.'
+      );
+    }
+
+    // Backend + Ollama OK → c'est un vrai timeout d'inactivité
+    const profileLabels = { fast: 'Rapide', llama: 'Qualité', mixtral: 'Expert' };
+    const label = profileLabels[profile] || profile;
+    return (
+      `Le modèle ${label} a mis trop de temps à répondre. ` +
+      'Essayez un prompt plus court ou le profil Rapide.'
+    );
+  } catch {
+    // Même le health check échoue → backend complètement HS
+    return 'Le serveur backend ne répond plus. Relancez tous les services depuis le launcher.';
+  }
+};
+
+/**
+ * Forcer le déchargement d'un modèle Ollama de la RAM.
+ * Appelé après annulation d'un stream sur un profil lourd
+ * pour libérer la mémoire immédiatement.
+ */
+const forceUnloadModel = (profile) => {
+  fetch(`${BACKEND_URL}/models/unload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile }),
+  }).then(() => {
+    console.log(`[Gustave] Déchargement forcé du modèle (${profile})`);
+  }).catch(() => {
+    // Pas grave si ça échoue — best effort
+  });
+};
+
 /**
  * Envoyer un message et recevoir la réponse en streaming SSE.
  * Le streaming passe directement par le backend (pas de proxy)
@@ -96,7 +168,26 @@ export const getHealth = async () => {
 export const sendMessage = (message, conversationId, profile, callbacks) => {
   const abortController = new AbortController();
 
+  // Refs de timers partagées — accessibles depuis la fonction cancel
+  let connectTimerRef = null;
+  let inactivityTimerRef = null;
+  let cancelled = false;
+
+  const clearAllTimers = () => {
+    if (connectTimerRef) { clearTimeout(connectTimerRef); connectTimerRef = null; }
+    if (inactivityTimerRef) { clearTimeout(inactivityTimerRef); inactivityTimerRef = null; }
+  };
+
   const startStream = async () => {
+    // Timer de connexion initiale (attend le premier byte du serveur)
+    const connectTimeout = PROFILE_CONNECT_TIMEOUTS[profile] || 60_000;
+    connectTimerRef = setTimeout(async () => {
+      abortController.abort();
+      // Diagnostic : health check pour savoir pourquoi ça ne se connecte pas
+      const errorMsg = await diagnoseError(profile);
+      if (!cancelled) callbacks.onError?.(errorMsg);
+    }, connectTimeout);
+
     try {
       // SSE direct vers le backend (pas de proxy React)
       const url = `${BACKEND_URL}/chat`;
@@ -112,6 +203,9 @@ export const sendMessage = (message, conversationId, profile, callbacks) => {
         signal: abortController.signal,
       });
 
+      // Connexion établie, annuler le timer de connexion
+      if (connectTimerRef) { clearTimeout(connectTimerRef); connectTimerRef = null; }
+
       if (!response.ok) {
         const errText = await response.text().catch(() => '');
         throw new Error(
@@ -125,9 +219,25 @@ export const sendMessage = (message, conversationId, profile, callbacks) => {
       const decoder = new TextDecoder();
       let buffer = '';
 
+      // Timer d'inactivité — reset à chaque chunk reçu
+      const resetInactivityTimer = () => {
+        if (inactivityTimerRef) clearTimeout(inactivityTimerRef);
+        inactivityTimerRef = setTimeout(async () => {
+          console.warn('[Gustave] Timeout inactivité SSE — diagnostic en cours...');
+          abortController.abort();
+          // Diagnostic : health check pour savoir ce qui a cassé
+          const errorMsg = await diagnoseError(profile);
+          if (!cancelled) callbacks.onError?.(errorMsg);
+        }, STREAM_INACTIVITY_TIMEOUT);
+      };
+      resetInactivityTimer();
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+
+        // Données reçues — reset le timer d'inactivité
+        resetInactivityTimer();
 
         buffer += decoder.decode(value, { stream: true });
 
@@ -176,32 +286,39 @@ export const sendMessage = (message, conversationId, profile, callbacks) => {
           // Les lignes commençant par ":" sont des commentaires SSE (keepalive) — on les ignore
         }
       }
+
+      // Stream terminé proprement — nettoyer les timers
+      clearAllTimers();
+
     } catch (error) {
+      // Toujours nettoyer les timers, même sur erreur
+      clearAllTimers();
+
       if (error.name === 'AbortError') return;
 
       // Log complet pour debug (visible dans la console navigateur F12)
       console.error('[Gustave] Erreur SSE:', error);
 
-      // Messages d'erreur clairs selon le type
-      let userMessage;
-      const msg = (error.message || '').toLowerCase();
-
-      if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network')) {
-        userMessage = 'Impossible de joindre le backend. Vérifiez que tous les services sont démarrés dans le launcher.';
-      } else if (msg.includes('timeout') || msg.includes('aborted')) {
-        userMessage = 'La requête a expiré. Le modèle met peut-être trop de temps à répondre.';
-      } else {
-        userMessage = error.message || 'Erreur de connexion au serveur';
-      }
-
-      callbacks.onError?.(userMessage);
+      // Diagnostic précis via health check
+      const userMessage = await diagnoseError(profile);
+      if (!cancelled) callbacks.onError?.(userMessage);
     }
   };
 
   startStream();
 
-  // Retourner une fonction pour annuler
-  return () => abortController.abort();
+  // Retourner une fonction pour annuler proprement
+  return () => {
+    cancelled = true;       // Empêche les callbacks d'erreur tardifs
+    clearAllTimers();        // Nettoie TOUS les timers (connectTimer + inactivityTimer)
+    abortController.abort(); // Coupe le fetch
+
+    // Forcer le déchargement du modèle pour les profils lourds
+    // → libère immédiatement la RAM au lieu d'attendre keep_alive
+    if (profile === 'mixtral' || profile === 'llama') {
+      forceUnloadModel(profile);
+    }
+  };
 };
 
 export default apiClient;

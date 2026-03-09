@@ -13,7 +13,7 @@ from typing import AsyncGenerator, Optional
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
 
-from app.config import ModelProfile, settings
+from app.config import ModelProfile, settings, PROFILE_CONTEXT_LIMITS
 from app.services.llm_service import llm_service
 from app.services.memory_service import memory_service
 from app.services.tools import get_available_tools
@@ -77,6 +77,9 @@ class AgentService:
     # LLaMA 3.3 ablitéré produit des appels fantômes — désactivé par sécurité
     TOOLS_SUPPORTED_PROFILES = {ModelProfile.FAST}
 
+    # Profils lourds — titre par fallback rapide (pas de 2ème inférence)
+    HEAVY_PROFILES = {ModelProfile.LLAMA, ModelProfile.MIXTRAL}
+
     def get_agent(self, profile: ModelProfile, system_prompt: str = ""):
         """
         Créer un agent LangGraph avec le profil de qualité spécifié.
@@ -88,7 +91,7 @@ class AgentService:
             tools = get_available_tools()
         else:
             tools = []
-            logger.info(f"Profil {profile.value}: tools desactives (non supportes)")
+            logger.info(f"Profil {profile.value}: tools désactivés (non supportés)")
 
         agent = create_react_agent(
             model=llm,
@@ -143,24 +146,51 @@ class AgentService:
             yield {"event": "conversation_id", "data": {"id": conversation_id}}
 
             # ============================================
-            # 2. Construire le contexte
+            # 2. Construire le contexte (adapté au profil)
             # ============================================
+            ctx_limits = PROFILE_CONTEXT_LIMITS.get(profile, PROFILE_CONTEXT_LIMITS[ModelProfile.FAST])
+            max_history = ctx_limits["max_history"]
+            max_msg_chars = ctx_limits["max_msg_chars"]
+            max_memory_results = ctx_limits["max_memory_results"]
+            max_memory_doc_chars = ctx_limits["max_memory_doc_chars"]
+            use_long_term = ctx_limits["enable_long_term_memory"]
 
             # Mémoire court-terme (historique conversation)
             history = memory_service.get_conversation_history(
                 conversation_id,
-                max_messages=settings.max_conversation_history,
+                max_messages=max_history,
             )
+
+            # Tronquer les messages longs dans l'historique
+            # (une seule longue réponse ne doit pas consommer tout le contexte)
+            if max_msg_chars > 0:
+                truncated_history = []
+                for msg in history:
+                    if len(msg.content) > max_msg_chars:
+                        truncated = msg.content[:max_msg_chars] + "... [tronqué]"
+                        if isinstance(msg, HumanMessage):
+                            truncated_history.append(HumanMessage(content=truncated))
+                        elif isinstance(msg, AIMessage):
+                            truncated_history.append(AIMessage(content=truncated))
+                        else:
+                            truncated_history.append(msg)
+                    else:
+                        truncated_history.append(msg)
+                history = truncated_history
 
             # Mémoire long-terme (conversations passées pertinentes)
             memory_context = ""
-            if settings.enable_long_term_memory and memory_service.is_available:
+            if (use_long_term and max_memory_results > 0
+                    and settings.enable_long_term_memory and memory_service.is_available):
                 relevant_context = memory_service.search_relevant_context(
                     query=message,
+                    n_results=max_memory_results,
                     exclude_conversation_id=conversation_id,
                 )
                 if relevant_context:
-                    memory_context = memory_service.format_context_for_prompt(relevant_context)
+                    memory_context = memory_service.format_context_for_prompt(
+                        relevant_context, max_doc_chars=max_memory_doc_chars,
+                    )
 
             # Construire le prompt système avec le contexte mémoire
             # N'inclure la section outils que pour les profils compatibles
@@ -177,6 +207,12 @@ class AgentService:
             if history and len(history) > 1:
                 messages.extend(history[:-1])
             messages.append(HumanMessage(content=message))
+
+            logger.info(
+                f"Contexte {profile.value}: {len(messages)} msgs | "
+                f"max_history={max_history} max_chars={max_msg_chars} "
+                f"memory={'on' if use_long_term else 'off'}"
+            )
 
             # ============================================
             # 3. Exécuter l'agent avec streaming
@@ -265,7 +301,7 @@ class AgentService:
                 elif kind == "on_tool_start":
                     tool_name = event.get("name", "unknown")
                     tool_input = event.get("data", {}).get("input", {})
-                    logger.info(f"Outil appele: {tool_name} | Input: {tool_input}")
+                    logger.info(f"Outil appelé: {tool_name} | Input: {tool_input}")
                     yield {
                         "event": "tool_start",
                         "data": {"tool_name": tool_name, "tool_input": tool_input},
@@ -306,6 +342,7 @@ class AgentService:
             clean_response = re.sub(r'<think>.*?</think>', '', full_response, flags=re.DOTALL).strip()
 
             message_id = None
+            needs_title = False
             with get_db_session() as db:
                 msg = add_message(
                     db,
@@ -316,13 +353,18 @@ class AgentService:
                     tool_calls=tool_calls_log if tool_calls_log else None,
                     thinking_time_ms=thinking_time_ms,
                 )
-                # Extraire l'ID avant la fermeture de session
                 message_id = msg.id
-
-                # Auto-titre si c'est le premier échange
                 conv = get_conversation(db, conversation_id)
-                if conv and conv.title == "Nouvelle conversation":
-                    title = self._generate_title(message)
+                needs_title = conv and conv.title == "Nouvelle conversation"
+
+            # Auto-titre : LLM pour les modèles légers, fallback pour les lourds
+            # (évite une 2ème inférence sur Mixtral/LLaMA qui sont déjà sous pression)
+            if needs_title:
+                if profile in self.HEAVY_PROFILES:
+                    title = self._generate_title_fallback(message)
+                else:
+                    title = await self._generate_title_llm(message, profile)
+                with get_db_session() as db:
                     update_conversation_title(db, conversation_id, title)
 
             # ============================================
@@ -353,13 +395,76 @@ class AgentService:
 
         except Exception as e:
             logger.error(f"Erreur agent: {e}", exc_info=True)
+            error_msg = await self._diagnose_error(e, profile)
             yield {
                 "event": "error",
-                "data": {"message": f"Erreur: {str(e)}"},
+                "data": {"message": error_msg},
             }
 
-    def _generate_title(self, message: str) -> str:
-        """Générer un titre court à partir du premier message."""
+    async def _diagnose_error(self, error: Exception, profile: ModelProfile) -> str:
+        """Diagnostiquer l'erreur et produire un message utilisateur clair."""
+        err_str = str(error).lower()
+
+        # Vérifier si Ollama est encore vivant
+        ollama_alive = await llm_service.check_ollama_connection()
+
+        if not ollama_alive:
+            return (
+                "Ollama a cessé de répondre (probablement un crash mémoire). "
+                "Relancez Ollama depuis le launcher, ou rechargez tous les services."
+            )
+
+        if "connection refused" in err_str or "connect error" in err_str:
+            return "Impossible de contacter Ollama. Vérifiez qu'il est démarré."
+
+        if "timeout" in err_str or "timed out" in err_str:
+            info = llm_service.get_profile_info(profile)
+            model_name = info.get("name", profile.value)
+            return (
+                f"Le modèle {model_name} a mis trop de temps à répondre. "
+                f"Ce modèle nécessite beaucoup de ressources — "
+                f"essayez avec un prompt plus court ou le profil Rapide."
+            )
+
+        if "out of memory" in err_str or "oom" in err_str or "alloc" in err_str:
+            return (
+                "Mémoire insuffisante pour ce modèle. "
+                "Essayez le profil Rapide ou réduisez la longueur du contexte."
+            )
+
+        if "404" in err_str and "model" in err_str:
+            return "Modèle introuvable. Vérifiez qu'il est installé (ollama list)."
+
+        return f"Erreur: {str(error)}"
+
+    async def _generate_title_llm(self, message: str, profile: ModelProfile) -> str:
+        """Générer un titre via le LLM (modèle déjà chargé, ~1s)."""
+        try:
+            llm = llm_service.get_llm(profile=profile, streaming=False)
+            from langchain_core.messages import HumanMessage as HM
+            response = await llm.ainvoke([
+                HM(content=(
+                    "Génère un titre court (3-6 mots max) pour cette conversation. "
+                    "Réponds UNIQUEMENT avec le titre, sans guillemets, sans ponctuation finale, "
+                    "sans explication. Langue identique au message.\n\n"
+                    f"Message : {message[:300]}"
+                ))
+            ])
+            title = response.content.strip().strip('"\'').rstrip('.!?')
+            # Supprimer un éventuel préfixe "Titre : " généré par le modèle
+            for prefix in ("Titre :", "Titre:", "Title:", "Title :"):
+                if title.lower().startswith(prefix.lower()):
+                    title = title[len(prefix):].strip()
+            if title and 2 <= len(title) <= 80:
+                return title
+        except Exception as e:
+            logger.warning(f"Titre LLM échoué: {e}")
+
+        return self._generate_title_fallback(message)
+
+    @staticmethod
+    def _generate_title_fallback(message: str) -> str:
+        """Fallback : titre basé sur les premiers mots du message."""
         words = message.strip().split()
         if len(words) <= 6:
             title = message.strip()

@@ -29,8 +29,8 @@ echo  Versions abliterated (non censurees)
 echo ============================================
 echo.
 
-echo [1/3] Telechargement Qwen 2.5 14B Abliterated Q8_0 (Profil Rapide ~15 GB)...
-ollama pull huihui_ai/qwen2.5-abliterate:14b-instruct-q8_0
+echo [1/3] Telechargement JOSIEFIED Qwen3 8B Q8_0 (Profil Rapide ~9 GB)...
+ollama pull goekdenizguelmez/JOSIEFIED-Qwen3:8b-q8_0
 echo.
 
 echo [2/3] Telechargement LLaMA 3.3 70B Abliterated Q4_K_M (Profil LLaMA ~43 GB)...
@@ -59,7 +59,7 @@ echo  Etape 2/4 : Creation des profils qualite
 echo ============================================
 echo.
 
-echo [1/3] Creation du profil Rapide (14B Abliterated)...
+echo [1/3] Creation du profil Rapide (8B JOSIEFIED Qwen3)...
 ollama create gustave-fast -f modelfiles/Modelfile-fast
 echo.
 
@@ -93,7 +93,7 @@ echo  Etape 4/4 : Test rapide
 echo ============================================
 echo.
 
-echo Test du profil Rapide (14B Abliterated)...
+echo Test du profil Rapide (8B JOSIEFIED Qwen3)...
 echo "Bonjour, reponds en une phrase." | ollama run gustave-fast
 echo.
 
@@ -101,7 +101,7 @@ echo ============================================
 echo  Installation terminee !
 echo.
 echo  Profils disponibles (tous non censures):
-echo    gustave-fast    (14B Qwen Abliterated)
+echo    gustave-fast    (8B JOSIEFIED Qwen3)
 echo    gustave-llama   (70B LLaMA Abliterated)
 echo    gustave-mixtral (8x22B Dolphin Mixtral)
 echo.

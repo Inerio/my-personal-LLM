@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gustave Code — Panneau de controle</title>
+    <title>Gustave Code — Panneau de contrôle</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230c0b09'/%3E%3Crect x='2' y='2' width='60' height='60' rx='10' fill='none' stroke='%23c9a84c' stroke-width='1.5' opacity='0.3'/%3E%3Ctext x='32' y='48' font-family='Georgia,serif' font-size='48' font-weight='bold' fill='%23c9a84c' text-anchor='middle'%3EG%3C/text%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -25,7 +25,7 @@
         ::-webkit-scrollbar-thumb { background: #332c24; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #4a4035; }
 
-        /* -- Selection doree -- */
+        /* -- Sélection dorée -- */
         ::selection { background: rgba(201, 168, 76, 0.25); color: #e4d5be; }
 
         .container {
@@ -49,7 +49,7 @@
             text-shadow: 0 0 40px rgba(201, 168, 76, 0.15);
         }
 
-        /* -- Ligne decorative doree -- */
+        /* -- Ligne décorative dorée -- */
         .gold-line {
             height: 1px;
             background: linear-gradient(90deg, transparent, #c9a84c40, #c9a84c80, #c9a84c40, transparent);
@@ -178,19 +178,26 @@
         .logs-body { display: none; border-top: 1px solid #1e1a14; }
         .logs-body.open { display: block; }
         .logs-scroll {
-            max-height: 380px;
+            max-height: 500px;
             overflow-y: auto;
+            overflow-x: auto;
             padding: 8px 0;
             font-family: 'Consolas', 'JetBrains Mono', 'Courier New', monospace;
             font-size: 11.5px;
             line-height: 1.6;
         }
-        .log-line { padding: 1px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 0; }
+        /* Scrollbar horizontale chaleureuse */
+        .logs-scroll::-webkit-scrollbar { height: 6px; }
+        .logs-scroll::-webkit-scrollbar:horizontal { height: 6px; }
+        .logs-scroll::-webkit-scrollbar-track { background: transparent; }
+        .logs-scroll::-webkit-scrollbar-thumb { background: #332c24; border-radius: 3px; }
+        .logs-scroll::-webkit-scrollbar-thumb:hover { background: #4a4035; }
+        .log-line { padding: 1px 14px; white-space: nowrap; display: flex; gap: 0; width: fit-content; min-width: 100%; }
         .log-line:hover { background: #13110e; }
         .log-line.hidden { display: none; }
         .log-t  { color: #3d3428; margin-right: 8px; flex-shrink: 0; }
         .log-s  { margin-right: 8px; flex-shrink: 0; font-weight: 600; min-width: 70px; }
-        .log-m  { color: #a09580; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+        .log-m  { color: #a09580; flex-shrink: 0; }
         .log-s-ollama   { color: #c9a84c; }
         .log-s-chromadb { color: #b08050; }
         .log-s-backend  { color: #d4a04c; }
@@ -224,7 +231,7 @@
     <div class="logo"><span class="logo-g">G</span></div>
     <div class="gold-line"></div>
     <h1 class="title">Gustave Code</h1>
-    <p class="subtitle">Panneau de controle</p>
+    <p class="subtitle">Panneau de contrôle</p>
 
     <div class="services">
         <div class="service-row"><span class="dot stopped" id="dot-ollama"></span><span class="svc-name">Ollama</span><span class="svc-port">:$OLLAMA_PORT</span></div>
@@ -234,17 +241,17 @@
     </div>
 
     <div class="buttons">
-        <button class="btn btn-start"  id="btn-start"  onclick="doAction('start')">&#9654; Demarrer</button>
-        <button class="btn btn-stop"   id="btn-stop"   onclick="doAction('stop')">&#9632; Arreter</button>
+        <button class="btn btn-start"  id="btn-start"  onclick="doAction('start')">&#9654; Démarrer</button>
+        <button class="btn btn-stop"   id="btn-stop"   onclick="doAction('stop')">&#9632; Arrêter</button>
         <button class="btn btn-reload" id="btn-reload" onclick="doAction('reload')">&#8635; Recharger</button>
         <button class="btn btn-open"   id="btn-open"   onclick="openApp()">Ouvrir Gustave Code</button>
     </div>
     <div class="btn-bottom-row">
         <button class="btn btn-quit"   onclick="doAction('quit')">Quitter</button>
-        <button class="btn btn-update" id="btn-update" onclick="doUpdate()">&#10227; Mettre a jour</button>
+        <button class="btn btn-update" id="btn-update" onclick="doUpdate()">&#10227; Mettre à jour</button>
     </div>
 
-    <div class="status-bar" id="status-bar">Services arretes &mdash; Cliquez sur Demarrer</div>
+    <div class="status-bar" id="status-bar">Services arrêtés &mdash; Cliquez sur Démarrer</div>
 
     <!-- ====== PANNEAU DE LOGS ====== -->
     <div class="logs-panel">
@@ -256,7 +263,8 @@
             <span class="logs-badge" id="logs-badge">0</span>
             <span class="logs-spacer"></span>
             <div class="logs-filter" onclick="event.stopPropagation()">
-                <button class="logs-filter-btn active" data-f="launcher" onclick="setFilter('launcher',this)">Launcher</button>
+                <button class="logs-filter-btn active" data-f="all" onclick="setFilter('all',this)">Tous</button>
+                <button class="logs-filter-btn" data-f="launcher" onclick="setFilter('launcher',this)">Launcher</button>
                 <button class="logs-filter-btn" data-f="ollama" onclick="setFilter('ollama',this)">Ollama</button>
                 <button class="logs-filter-btn" data-f="chromadb" onclick="setFilter('chromadb',this)">ChromaDB</button>
                 <button class="logs-filter-btn" data-f="backend" onclick="setFilter('backend',this)">Backend</button>
@@ -267,12 +275,12 @@
         </div>
         <div class="logs-body" id="logs-body">
             <div class="logs-scroll" id="logs-scroll">
-                <div class="logs-empty" id="logs-empty">Aucun log — les logs apparaitront ici au demarrage</div>
+                <div class="logs-empty" id="logs-empty">Aucun log — les logs apparaîtront ici au démarrage</div>
             </div>
         </div>
     </div>
 
-    <div class="footer">Fermer cet onglet arretera automatiquement tous les services</div>
+    <div class="footer">Fermer cet onglet arrêtera automatiquement tous les services</div>
 </div>
 
 <script>
@@ -281,10 +289,12 @@
     var lastLogId = 0;
     var logsOpen = false;
     var autoScroll = true;
-    var currentFilter = 'launcher';
+    var currentFilter = 'all';
     var totalLogs = 0;
     var fetchingLogs = false;
     var fetchingStatus = false;
+    var actionLock = false;
+    var actionLockTimer = null;
 
     // ==== Toast ====
     var toastTimer = null;
@@ -298,6 +308,20 @@
 
     // ==== Status ====
     function updateUI(data) {
+        // Protection contre les réponses en vol d'avant un clic action.
+        // Si actionLock est actif, on ignore les réponses "pas busy"
+        // (elles viennent d'avant le clic) jusqu'à confirmation du serveur.
+        if (actionLock) {
+            if (data.busy) {
+                // Le serveur confirme qu'il traite l'action : déverrouiller
+                actionLock = false;
+                clearTimeout(actionLockTimer);
+            } else {
+                // Réponse périmée d'avant le clic : ignorer silencieusement
+                return;
+            }
+        }
+
         var svcs = data.services;
         var allRunning = true, allStopped = true;
         for (var id in svcs) {
@@ -313,13 +337,13 @@
         document.getElementById('btn-open').disabled   = !allRunning;
         var bar = document.getElementById('status-bar');
         if (busy) {
-            bar.textContent = 'Operation en cours...';
+            bar.textContent = 'Opération en cours...';
             bar.className = 'status-bar busy';
         } else if (allRunning) {
             bar.textContent = 'Tous les services sont actifs';
             bar.className = 'status-bar ok';
         } else if (allStopped) {
-            bar.textContent = 'Services arretes \u2014 Cliquez sur Demarrer';
+            bar.textContent = 'Services arrêtés \u2014 Cliquez sur Démarrer';
             bar.className = 'status-bar';
         } else {
             var n = 0; for (var k in svcs) if (svcs[k]==='running') n++;
@@ -342,24 +366,29 @@
 
     // ==== Actions ====
     var actionLabels = {
-        start:  'Demarrage des services...',
-        stop:   'Arret des services...',
+        start:  'Démarrage des services...',
+        stop:   'Arrêt des services...',
         reload: 'Rechargement des services...',
-        quit:   'Arret en cours...'
+        quit:   'Arrêt en cours...'
     };
 
     function setImmediateFeedback(action) {
-        // 1. Desactiver tous les boutons instantanement
+        // Verrouiller updateUI pour ignorer les réponses en vol d'avant le clic
+        actionLock = true;
+        clearTimeout(actionLockTimer);
+        actionLockTimer = setTimeout(function(){ actionLock = false; }, 5000);
+
+        // 1. Désactiver tous les boutons instantanement
         ['btn-start','btn-stop','btn-reload','btn-open'].forEach(function(id){
             document.getElementById(id).disabled = true;
         });
 
         // 2. Status bar -> message de chargement
         var bar = document.getElementById('status-bar');
-        bar.textContent = actionLabels[action] || 'Operation en cours...';
+        bar.textContent = actionLabels[action] || 'Opération en cours...';
         bar.className = 'status-bar busy';
 
-        // 3. Dots : montrer l'etat transitoire
+        // 3. Dots : montrer l'état transitoire
         var dots = ['dot-ollama','dot-chromadb','dot-backend','dot-frontend'];
         if (action === 'start' || action === 'reload') {
             dots.forEach(function(id){
@@ -377,10 +406,10 @@
             });
         }
 
-        // 4. Accelerer le polling temporairement (500ms au lieu de 2s)
+        // 4. Accélérer le polling temporairement (500ms au lieu de 2s)
         clearInterval(polling);
         polling = setInterval(function(){ fetchStatus(); fetchLogs(); }, 500);
-        // Revenir au polling normal apres 30s
+        // Revenir au polling normal après 30s
         setTimeout(function(){
             clearInterval(polling);
             polling = setInterval(function(){ fetchStatus(); fetchLogs(); }, 2000);
@@ -388,9 +417,9 @@
     }
 
     window.doAction = function(action) {
-        if (action === 'quit' && !confirm('Arreter tous les services et quitter Gustave Code ?')) return;
+        if (action === 'quit' && !confirm('Arrêter tous les services et quitter Gustave Code ?')) return;
 
-        // Feedback visuel INSTANTANE
+        // Feedback visuel INSTANTANÉ
         setImmediateFeedback(action);
 
         fetch('/api/' + action, {method:'POST'}).then(function(r){return r.json()}).then(function(){
@@ -399,7 +428,7 @@
                 setTimeout(function(){
                     document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;">'
                         +'<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:64px;font-weight:bold;color:#c9a84c;text-shadow:0 0 40px rgba(201,168,76,0.15);">G</div>'
-                        +'<div style="color:#5a5040;margin-top:12px;font-size:14px;">Gustave Code arrete. Vous pouvez fermer cet onglet.</div></div>';
+                        +'<div style="color:#5a5040;margin-top:12px;font-size:14px;">Gustave Code arrêté. Vous pouvez fermer cet onglet.</div></div>';
                 }, 3000);
             }
         }).catch(function(e){console.error(e)});
@@ -408,23 +437,23 @@
 
     // ==== Update (restart launcher, services stay alive) ====
     window.doUpdate = function() {
-        showToast('Mise a jour du launcher...', 5000);
+        showToast('Mise à jour du launcher...', 5000);
         document.getElementById('btn-update').disabled = true;
         clearInterval(polling);
         fetch('/api/update', {method:'POST'}).then(function(r){return r.json()}).catch(function(){});
-        // Le launcher va redemarrer — on poll jusqu'a ce qu'il revienne
+        // Le launcher va redémarrer — on poll jusqu'a ce qu'il revienne
         var attempts = 0;
         var tryReconnect = setInterval(function(){
             attempts++;
             if (attempts > 30) { // 15s max
                 clearInterval(tryReconnect);
-                showToast('Echec de reconnexion', 3000);
+                showToast('Échec de reconnexion', 3000);
                 return;
             }
             fetch('/api/status').then(function(r){return r.json()}).then(function(data){
                 clearInterval(tryReconnect);
                 // Recharger la page pour avoir le nouveau HTML
-                showToast('Launcher mis a jour !', 2000);
+                showToast('Launcher mis à jour !', 2000);
                 setTimeout(function(){ location.reload(); }, 1000);
             }).catch(function(){});
         }, 500);
@@ -451,7 +480,7 @@
             if (empty) empty.remove();
 
             data.logs.forEach(function(e) {
-                // Protection supplementaire : ignorer si deja affiche
+                // Protection supplémentaire : ignorer si déjà affiché
                 if (e.id <= lastLogId) return;
                 lastLogId = e.id;
                 totalLogs++;
@@ -470,7 +499,7 @@
                 scroll.appendChild(div);
             });
 
-            while (scroll.children.length > 600) scroll.removeChild(scroll.firstChild);
+            while (scroll.children.length > 1500) scroll.removeChild(scroll.firstChild);
 
             var badge = document.getElementById('logs-badge');
             badge.textContent = totalLogs;
@@ -507,7 +536,7 @@
     window.clearLogs = function() {
         fetch('/api/logs/clear', {method:'POST'});
         var scroll = document.getElementById('logs-scroll');
-        scroll.innerHTML = '<div class="logs-empty" id="logs-empty">Logs effaces</div>';
+        scroll.innerHTML = '<div class="logs-empty" id="logs-empty">Logs effacés</div>';
         lastLogId = 0;
         totalLogs = 0;
         var badge = document.getElementById('logs-badge');
@@ -520,9 +549,9 @@
     });
 
     // ==== Heartbeat (fermer l'onglet = extinction auto des services) ====
-    // Web Worker : immune au throttling des onglets en arriere-plan.
+    // Web Worker : immune au throttling des onglets en arrière-plan.
     // Sans Worker, Chrome ralentit setInterval a 1x/min en background,
-    // ce qui declenche le timeout cote serveur et eteint les services.
+    // ce qui déclenche le timeout côté serveur et éteint les services.
     (function initHeartbeat() {
         var HB_INTERVAL = 3000;
         var origin = location.origin; // http://localhost:9000

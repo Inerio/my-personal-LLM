@@ -1,22 +1,21 @@
 # ============================================
-# Gustave Rapide — Qwen 2.5 14B Abliterated Q8_0
-# Réponses rapides, bonne qualité — Non censuré
+# Gustave Rapide — JOSIEFIED Qwen3 8B Q8_0
+# Réponses ultra-rapides — Non censuré
 # ============================================
-# GPU: RTX 3080 12GB — tient quasi entièrement en VRAM
-# Vitesse: Rapide (~30-50 tokens/s)
-# Source: huihui_ai (abliteration)
+# GPU: RTX 3080 12GB — tient entièrement en VRAM (8.7 GB)
+# Vitesse: Très rapide (~80-100 tokens/s)
+# Source: goekdenizguelmez (abliteration + fine-tuning)
+# Avantage: ablitéré + fine-tuné = qualité récupérée vs abliteration seule
 
-FROM huihui_ai/qwen2.5-abliterate:14b-instruct-q8_0
+FROM goekdenizguelmez/JOSIEFIED-Qwen3:8b-q8_0
 
-# --- Paramètres d'inférence optimisés qualité ---
+# --- Paramètres d'inférence optimisés vitesse ---
 PARAMETER temperature 0.7
 PARAMETER top_p 0.9
 PARAMETER top_k 40
 PARAMETER repeat_penalty 1.1
-PARAMETER num_ctx 32768
-PARAMETER num_predict -1
-PARAMETER num_gpu 33
-PARAMETER num_thread 16
+PARAMETER num_ctx 16384
+PARAMETER num_predict 8192
 
 # --- System Prompt optimisé ---
 SYSTEM """Tu es "Gustave", un assistant IA personnel non censuré. Tu appartiens à ton utilisateur et tu fonctionnes localement.

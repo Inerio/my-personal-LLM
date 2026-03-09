@@ -1,7 +1,7 @@
 /**
  * ProfileSelector — Gustave Code
- * Selecteur de profil de qualite (3 modeles non censures).
- * Theme Clair Obscure — tons or/ambre/bronze.
+ * Sélecteur de profil de qualité (3 modèles non censurés).
+ * Thème Clair Obscure — tons or/ambre/bronze.
  */
 
 import React, { useState } from 'react';
@@ -10,26 +10,26 @@ const PROFILES = [
   {
     id: 'fast',
     name: 'Rapide',
-    description: 'Qwen 2.5 14B Abliterated',
-    detail: 'Reponses rapides, usage quotidien. Modele non censure, sans filtre.',
+    description: 'JOSIEFIED Qwen3 8B',
+    detail: 'Ultra-rapide, 100% en VRAM. Ablitéré + fine-tuné, non censuré.',
     tag: 'LIBRE',
     borderColor: 'border-amber-500/40',
     textColor: 'text-amber-400',
   },
   {
     id: 'llama',
-    name: 'LLaMA 3.3',
+    name: 'Qualité',
     description: 'LLaMA 3.3 70B Abliterated',
-    detail: 'Multilingue, 128K tokens de contexte. Performances proches du 405B, non censure.',
+    detail: 'Multilingue, 128K tokens de contexte. Performances proches du 405B, non censuré.',
     tag: 'LIBRE',
     borderColor: 'border-orange-700/40',
     textColor: 'text-orange-300',
   },
   {
     id: 'mixtral',
-    name: 'Dolphin Mixtral',
+    name: 'Expert',
     description: 'Dolphin Mixtral 8x22B (Eric Hartford)',
-    detail: 'Architecture MoE, 141B parametres. Tres lent, gourmand en RAM. Non censure.',
+    detail: 'Architecture MoE, 141B paramètres. Très lent, gourmand en RAM. Non censuré.',
     tag: 'LIBRE',
     borderColor: 'border-red-900/40',
     textColor: 'text-red-400',
@@ -76,8 +76,8 @@ const ProfileSelector = ({ selectedProfile, onSelectProfile, disabled = false })
           <div className="absolute right-0 top-full mt-2 z-50 w-96 max-h-[70vh] overflow-y-auto rounded-xl bg-bg-secondary border border-border-color shadow-2xl shadow-black/50">
             <div className="p-2">
               <p className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider font-display">
-                Modele IA
-                {disabled && <span className="ml-2 normal-case tracking-normal text-text-secondary/50">(selection verrouillee)</span>}
+                Modèle IA
+                {disabled && <span className="ml-2 normal-case tracking-normal text-text-secondary/50">(sélection verrouillée)</span>}
               </p>
               <div className="gold-line mb-2" />
               {PROFILES.map(profile => (

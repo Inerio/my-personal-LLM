@@ -3,12 +3,41 @@ Routes Modèles — Gustave Code
 Liste des modèles Ollama et profils de qualité disponibles.
 """
 
-from fastapi import APIRouter
+import logging
 
+from fastapi import APIRouter
+from pydantic import BaseModel
+
+from app.config import ModelProfile
 from app.models.schemas import ProfileResponse, ModelResponse
 from app.services.llm_service import llm_service
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+
+class UnloadRequest(BaseModel):
+    profile: str
+
+
+@router.post("/unload")
+async def unload_model(request: UnloadRequest):
+    """
+    Forcer le déchargement d'un modèle Ollama de la RAM.
+    Appelé après annulation d'un stream sur un profil lourd
+    pour libérer la mémoire immédiatement.
+    """
+    try:
+        profile = ModelProfile(request.profile)
+    except ValueError:
+        return {"status": "error", "message": f"Profil inconnu: {request.profile}"}
+
+    success = await llm_service.unload_model(profile)
+    return {
+        "status": "unloaded" if success else "failed",
+        "profile": request.profile,
+    }
 
 
 @router.get("/profiles", response_model=list[ProfileResponse])

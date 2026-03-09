@@ -40,7 +40,7 @@ class MemoryService:
                 metadata={"hnsw:space": "cosine"},
             )
             self._initialized = True
-            logger.info(f"ChromaDB initialise — {self.collection.count()} documents en memoire")
+            logger.info(f"ChromaDB initialisé —{self.collection.count()} documents en mémoire")
         except Exception as e:
             logger.warning(f"ChromaDB non disponible: {e}")
             self._initialized = False
@@ -119,7 +119,7 @@ class MemoryService:
                 metadatas=[doc_metadata],
                 ids=[str(uuid.uuid4())],
             )
-            logger.debug("Interaction stockee en memoire long-terme")
+            logger.debug("Interaction stockée en mémoire long-terme")
 
         except Exception as e:
             logger.error(f"Erreur stockage mémoire long-terme: {e}")
@@ -184,37 +184,88 @@ class MemoryService:
             logger.error(f"Erreur recherche mémoire long-terme: {e}")
             return []
 
-    def format_context_for_prompt(self, context_items: list[dict]) -> str:
+    def format_context_for_prompt(
+        self,
+        context_items: list[dict],
+        max_doc_chars: int = 800,
+    ) -> str:
         """
         Formater le contexte de mémoire long-terme pour injection dans le prompt.
+
+        Args:
+            context_items: Résultats de recherche ChromaDB.
+            max_doc_chars: Chars max par document (les profils lourds ont des limites basses).
         """
         if not context_items:
             return ""
 
-        parts = ["[Contexte de conversations précédentes pertinentes:]"]
+        parts = ["\n[Contexte de conversations précédentes pertinentes:]"]
         for i, item in enumerate(context_items, 1):
             relevance = item.get("relevance", 0)
+            doc = item["document"]
+            # Tronquer les documents longs pour les profils à contexte limité
+            if max_doc_chars > 0 and len(doc) > max_doc_chars:
+                doc = doc[:max_doc_chars] + "..."
             parts.append(f"\n--- Mémoire {i} (pertinence: {relevance:.0%}) ---")
-            parts.append(item["document"])
+            parts.append(doc)
 
         return "\n".join(parts)
 
     def delete_conversation_memories(self, conversation_id: str):
         """Supprimer toutes les entrées ChromaDB liées à une conversation."""
         if not self.is_available:
+            logger.warning(
+                f"ChromaDB indisponible — mémoires de {conversation_id[:8]} NON supprimées. "
+                f"Utilisez 'Effacer le contexte' pour purger manuellement."
+            )
             return
         try:
-            # Chercher les IDs des documents de cette conversation
             results = self.collection.get(
                 where={"conversation_id": conversation_id},
             )
             if results and results["ids"]:
                 self.collection.delete(ids=results["ids"])
                 logger.info(
-                    f"{len(results['ids'])} memoires supprimees pour conversation {conversation_id[:8]}"
+                    f"{len(results['ids'])} mémoires supprimées pour conversation {conversation_id[:8]}"
                 )
+            else:
+                logger.debug(f"Aucune mémoire ChromaDB pour conversation {conversation_id[:8]}")
         except Exception as e:
             logger.error(f"Erreur suppression mémoire ChromaDB: {e}")
+
+    def purge_all_memories(self) -> dict:
+        """
+        Purger TOUTE la mémoire long-terme (ChromaDB).
+        Supprime et recrée la collection pour un nettoyage complet.
+        Retourne le nombre de documents supprimés.
+        """
+        if not self.is_available:
+            # Tenter une reconnexion avant d'abandonner
+            try:
+                self.initialize()
+            except Exception:
+                pass
+
+        if not self.is_available:
+            logger.warning("ChromaDB indisponible — purge impossible")
+            return {"purged": 0, "available": False}
+
+        try:
+            count_before = self.collection.count()
+
+            # Supprimer et recréer la collection (plus fiable que delete par batch)
+            self.chroma_client.delete_collection("conversation_memory")
+            self.collection = self.chroma_client.get_or_create_collection(
+                name="conversation_memory",
+                metadata={"hnsw:space": "cosine"},
+            )
+
+            logger.info(f"Mémoire long-terme purgée : {count_before} documents supprimés")
+            return {"purged": count_before, "available": True}
+
+        except Exception as e:
+            logger.error(f"Erreur purge mémoire ChromaDB: {e}")
+            return {"purged": 0, "available": True, "error": str(e)}
 
     def get_memory_stats(self) -> dict:
         """Obtenir des statistiques sur la mémoire."""

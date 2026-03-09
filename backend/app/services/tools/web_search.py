@@ -28,7 +28,7 @@ try:
     _HAS_DDGS = True
     logger.info("duckduckgo-search disponible")
 except ImportError:
-    logger.info("duckduckgo-search non installe — fallback httpx")
+    logger.info("duckduckgo-search non installé — fallback httpx")
 
 
 def _is_quota_error(exc: Exception) -> bool:
@@ -196,7 +196,7 @@ def web_search_tool(query: str) -> str:
             if _is_quota_error(e):
                 _tavily_exhausted = True
                 logger.warning(
-                    "Quota Tavily epuise — bascule vers DuckDuckGo "
+                    "Quota Tavily épuisé — bascule vers DuckDuckGo "
                     "pour le reste de la session"
                 )
             else:

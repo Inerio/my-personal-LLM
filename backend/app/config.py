@@ -51,25 +51,88 @@ PROFILE_INFO = {
     },
     ModelProfile.FAST: {
         "name": "Rapide",
-        "description": "Qwen 2.5 14B Abliterated — Réponses rapides, non censuré",
-        "base_model": "huihui_ai/qwen2.5-abliterate:14b-instruct-q8_0",
-        "parameters": "14B",
+        "description": "JOSIEFIED Qwen3 8B — Ablitéré + fine-tuné, ultra-rapide, non censuré",
+        "base_model": "goekdenizguelmez/JOSIEFIED-Qwen3:8b-q8_0",
+        "parameters": "8B",
         "quantization": "Q8_0",
-        "estimated_ram": "~15 GB",
-        "speed": "Rapide",
+        "estimated_ram": "~9 GB (100% VRAM)",
+        "speed": "Très rapide",
     },
 }
 
-# Paramètres d'inférence optimisés pour la qualité
-QUALITY_INFERENCE_PARAMS = {
-    "temperature": 0.7,
-    "top_p": 0.9,
-    "top_k": 40,
-    "repeat_penalty": 1.1,
-    "num_ctx": 32768,       # Fenêtre de contexte large
-    "num_predict": -1,       # Pas de limite de longueur
-    "num_gpu": 99,           # Maximum de couches en VRAM
-    "num_thread": 16,        # 16 cœurs physiques du 5950X
+# Paramètres d'inférence par profil — adaptés à la VRAM/RAM disponible
+# RTX 3080 12 GB VRAM + 64 GB RAM + Ryzen 9 5950X (16 cores / 32 threads)
+PROFILE_INFERENCE_PARAMS = {
+    ModelProfile.FAST: {
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 40,
+        "repeat_penalty": 1.1,
+        "num_ctx": 16384,       # 8B Q8_0 ≈8.7 GB + KV cache 16K ≈1 GB → 100% en VRAM (RTX 3080 12 GB)
+        "num_predict": 8192,     # Limite raisonnable — évite les générations infinies
+        "num_thread": 0,         # 0 = auto-detect (GPU-only, threads CPU non utilisés)
+    },
+    ModelProfile.LLAMA: {
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 40,
+        "repeat_penalty": 1.1,
+        "num_ctx": 8192,        # 70B = CPU offloading, KV cache réduit (~2.5 GiB vs ~5 GiB)
+        "num_predict": 4096,    # Limite raisonnable pour éviter les inférences infinies
+        "num_thread": 16,        # Cores physiques uniquement (5950X) — évite le cache thrashing
+    },
+    ModelProfile.MIXTRAL: {
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 40,
+        "repeat_penalty": 1.1,
+        "num_ctx": 4096,        # 8x22B (~80 GB) — contexte minimal (KV cache ÷2 vs 8K)
+        "num_predict": 2048,    # Limite courte — chaque token coûte cher en RAM
+        "num_thread": 16,        # Cores physiques uniquement (5950X)
+    },
+}
+
+# Limites de contexte par profil — contrôle la quantité de données envoyées au LLM
+# Crucial pour les profils lourds : chaque token compte quand le contexte est à 8K
+PROFILE_CONTEXT_LIMITS = {
+    ModelProfile.FAST: {
+        "max_history": 20,       # Messages d'historique (16K contexte)
+        "max_msg_chars": 3000,   # Chars max par message dans l'historique (~750 tokens)
+        "max_memory_results": 3, # Résultats mémoire long-terme injectés
+        "max_memory_doc_chars": 600,  # Chars max par document mémoire
+        "enable_long_term_memory": True,
+    },
+    ModelProfile.LLAMA: {
+        "max_history": 10,       # Historique réduit (8K contexte, CPU lent)
+        "max_msg_chars": 1500,   # ~375 tokens max par message
+        "max_memory_results": 2, # Juste les 2 souvenirs les plus pertinents
+        "max_memory_doc_chars": 400,  # Excerpts courts
+        "enable_long_term_memory": True,
+    },
+    ModelProfile.MIXTRAL: {
+        "max_history": 4,        # Historique ultra-minimal (4K contexte, modèle massif)
+        "max_msg_chars": 600,    # ~150 tokens max par message
+        "max_memory_results": 0, # Pas de mémoire long-terme (chaque token est précieux)
+        "max_memory_doc_chars": 0,
+        "enable_long_term_memory": False,  # Désactivé pour Mixtral
+    },
+}
+
+# Timeout HTTP Ollama par profil (secondes)
+# Temps max pour recevoir un chunk (inclut le chargement initial du modèle)
+PROFILE_TIMEOUTS = {
+    ModelProfile.FAST: 120,      # 2 min  — modèle rapide en VRAM
+    ModelProfile.LLAMA: 600,     # 10 min — CPU offloading, chargement lent
+    ModelProfile.MIXTRAL: 900,   # 15 min — très lent, modèle massif
+}
+
+# Durée de rétention du modèle en mémoire après la dernière requête
+# Switch de profil = déchargement immédiat (grâce à OLLAMA_MAX_LOADED_MODELS=1)
+# Ce timer ne concerne que l'inactivité SANS switch de profil
+PROFILE_KEEP_ALIVE = {
+    ModelProfile.FAST: "15m",    # 8B 100% VRAM — très léger, garde en mémoire
+    ModelProfile.LLAMA: "3m",    # 70B (~43 GB RAM) — libère vite si inactif
+    ModelProfile.MIXTRAL: "0",   # 8x22B (~80 GB RAM) — décharge IMMÉDIATEMENT après réponse
 }
 
 
