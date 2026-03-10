@@ -28,6 +28,12 @@ const normalizeNewlines = (text) => {
   return text.replace(/(?<!\\)\\n/g, '\n');
 };
 
+/** Nettoie les balises <think> orphelines qui auraient fuité dans le contenu. */
+const stripThinkTags = (text) => {
+  if (!text) return text;
+  return text.replace(/<\/?think>/g, '').trim();
+};
+
 const MessageBubble = ({ message }) => {
   const isUser = message.role === 'user';
   const isError = message.isError;
@@ -106,7 +112,7 @@ const MessageBubble = ({ message }) => {
                 ),
               }}
             >
-              {normalizeNewlines(message.content)}
+              {stripThinkTags(normalizeNewlines(message.content))}
             </ReactMarkdown>
           </div>
         )}
@@ -160,11 +166,13 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const langLabel = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
+
   return (
-    <div className="relative group my-2">
+    <div className="relative group my-2 rounded-lg border border-[#1a1611]">
       {/* Header du code block */}
-      <div className="flex items-center justify-between bg-[#1a1611] rounded-t-lg px-3 py-1.5 border-b border-border-color/50">
-        <span className="text-xs text-text-secondary font-mono">{language || 'code'}</span>
+      <div className="flex items-center justify-between bg-[#0a0908] rounded-t-lg px-3 py-1.5 border-b border-[#1a1611]">
+        <span className="text-[11px] text-accent/60 font-mono font-semibold tracking-wide">{langLabel}</span>
         <button
           onClick={handleCopy}
           className="text-xs text-text-secondary hover:text-accent transition-colors flex items-center gap-1"
@@ -172,7 +180,7 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
           {copied ? (
             <>
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20,6 9,17 4,12"/></svg>
-              Copie !
+              Copié !
             </>
           ) : (
             <>
@@ -190,7 +198,7 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
           margin: 0,
           borderRadius: '0 0 8px 8px',
           fontSize: '0.75rem',
-          background: '#12100d',
+          background: '#060504',
         }}
         {...props}
       >

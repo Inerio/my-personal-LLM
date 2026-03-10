@@ -2,7 +2,7 @@
 
 **Personal local AI assistant** powered by open-source uncensored LLMs, running entirely on your hardware. Your data never leaves your machine.
 
-Built with **React** + **FastAPI** + **LangChain** + **Ollama**.
+Built with **React** + **FastAPI** + **LangChain** + **Ollama** + **PyQt6**.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)
@@ -23,7 +23,7 @@ Built with **React** + **FastAPI** + **LangChain** + **Ollama**.
 - **Tool use** — Calculator, date/time, Wikipedia, web search (DuckDuckGo + Tavily)
 - **Long-term memory** — ChromaDB vector store for persistent context across sessions
 - **Conversation management** — Full CRUD with sidebar, search, and date grouping
-- **Control panel** — Desktop launcher with service management, logs, and health monitoring
+- **Native desktop launcher** — PyQt6 app with service management, real-time logs, and health monitoring
 - **Uncensored models** — Abliterated models with no refusal filters
 - **100% local** — No cloud dependency, no data exfiltration
 
@@ -40,8 +40,9 @@ Built with **React** + **FastAPI** + **LangChain** + **Ollama**.
 
 ```
 gustave-code/
-├── launcher.py          # Desktop control panel (port 9000)
-├── dashboard.html       # Launcher UI
+├── app.py               # Native PyQt6 desktop launcher
+├── gustave-code.ico     # Application icon
+├── fonts/               # Playfair Display font
 ├── backend/             # FastAPI + LangChain
 │   ├── app/
 │   │   ├── config.py          # Model profiles & settings
@@ -67,7 +68,7 @@ gustave-code/
 │       └── api/client.js      # Axios + Fetch SSE
 ├── modelfiles/          # Custom Ollama model profiles
 ├── data/                # ChromaDB vector store (gitignored)
-└── docker-compose.yml   # Full stack containerization
+└── docker-compose.yml   # Full stack containerization (alternative)
 ```
 
 ## Installation
@@ -93,7 +94,6 @@ cd my-personal-LLM
 ### Step 3 — Configure environment
 
 ```bash
-# Copy the template
 cp .env.example .env
 ```
 
@@ -102,8 +102,6 @@ Open `.env` in a text editor and configure:
 - **Optional:** Add a [Tavily API key](https://tavily.com) for premium web search
 - **Optional:** Add an [OpenWeatherMap API key](https://openweathermap.org/api) for weather tool
 
-> For Docker deployment, use `cp .env.docker .env` instead.
-
 ### Step 4 — Install dependencies
 
 **Backend (Python):**
@@ -111,6 +109,11 @@ Open `.env` in a text editor and configure:
 cd backend
 pip install -r requirements.txt
 cd ..
+```
+
+**Launcher (PyQt6):**
+```bash
+pip install PyQt6
 ```
 
 **Frontend (Node.js):**
@@ -133,25 +136,22 @@ setup-models.bat
 
 Only the Fast profile is required to get started (~9 GB download):
 ```bash
-# Download the base model
 ollama pull goekdenizguelmez/JOSIEFIED-Qwen3:8b-q8_0
-
-# Create the custom profile with optimized parameters
 ollama create gustave-fast -f modelfiles/Modelfile-fast
 ```
 
 Optional larger models (need more RAM):
 ```bash
-# LLaMA 3.3 70B — ~43 GB download, needs ~43 GB RAM
+# LLaMA 3.3 70B — ~43 GB, needs ~43 GB RAM
 ollama pull huihui_ai/llama3.3-abliterated:70b-instruct-q4_K_M
 ollama create gustave-llama -f modelfiles/Modelfile-llama
 
-# Dolphin Mixtral 8x22B — ~80 GB download, needs ~80 GB RAM
+# Dolphin Mixtral 8x22B — ~80 GB, needs ~80 GB RAM
 ollama pull dolphin-mixtral:8x22b
 ollama create gustave-mixtral -f modelfiles/Modelfile-mixtral
 ```
 
-Verify your models are installed:
+Verify your models:
 ```bash
 ollama list
 # Should show: gustave-fast (and gustave-llama, gustave-mixtral if installed)
@@ -159,18 +159,19 @@ ollama list
 
 ### Step 6 — Run
 
-#### Option A: Desktop Launcher (Recommended — Windows)
+#### Option A: Native Desktop Launcher (Recommended — Windows)
 
 ```bash
-pythonw launcher.py
+pythonw app.py
 ```
 
-This opens a control panel at **http://localhost:9000** that manages all services automatically (Ollama, ChromaDB, backend, frontend). Click "Start All" and you're ready.
+This opens a native PyQt6 control panel that manages all 4 services (Ollama, ChromaDB, Backend, Frontend). Click **Demarrer** to start all services, then **Ouvrir Gustave Code** to open the chat in your browser.
+
+You can also create a desktop shortcut pointing to `pythonw.exe app.py` with `gustave-code.ico` as the icon.
 
 #### Option B: Docker Compose
 
 ```bash
-cp .env.docker .env
 docker compose up --build -d
 ```
 
@@ -203,8 +204,8 @@ Open **http://localhost:3000** in your browser.
 
 ### Verify installation
 
-1. Open **http://localhost:3000** (or **http://localhost:9000** for the launcher)
-2. The health indicator in the bottom-left should show "Ollama connecté"
+1. Open **http://localhost:3000**
+2. The health indicator in the bottom-left should show "Ollama connecte"
 3. Type a message and press Enter — you should see a streaming response
 
 ## API Endpoints
@@ -237,6 +238,7 @@ All settings are in `.env` (copy from `.env.example`):
 
 ## Tech Stack
 
+- **Launcher**: PyQt6 (native desktop, frameless window, dark/gold theme)
 - **Frontend**: React 18, Tailwind CSS, Axios, react-markdown, react-syntax-highlighter
 - **Backend**: FastAPI, LangChain, LangGraph, SQLAlchemy
 - **LLM Runtime**: Ollama (local inference)

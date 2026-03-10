@@ -15,19 +15,12 @@ import logging
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from app.models.schemas import ChatRequest, ModelProfileEnum
+from app.models.schemas import ChatRequest
 from app.config import ModelProfile
 from app.services.agent import agent_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# Mapping enum API → enum config
-PROFILE_MAP = {
-    ModelProfileEnum.LLAMA: ModelProfile.LLAMA,
-    ModelProfileEnum.MIXTRAL: ModelProfile.MIXTRAL,
-    ModelProfileEnum.FAST: ModelProfile.FAST,
-}
 
 # Intervalle keepalive SSE (secondes)
 _KEEPALIVE_INTERVAL = 15.0
@@ -61,7 +54,7 @@ async def chat(request: ChatRequest):
     - `done` : Fin de la réponse avec métadonnées
     - `error` : En cas d'erreur
     """
-    profile = PROFILE_MAP.get(request.profile, ModelProfile.FAST)
+    profile = ModelProfile(request.profile.value)
 
     logger.info(
         f"Chat | Profil: {profile.value} | "

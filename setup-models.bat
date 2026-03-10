@@ -105,6 +105,6 @@ echo    gustave-fast    (8B JOSIEFIED Qwen3)
 echo    gustave-llama   (70B LLaMA Abliterated)
 echo    gustave-mixtral (8x22B Dolphin Mixtral)
 echo.
-echo  Lancez 'start.bat' pour demarrer l'application
+echo  Lancez le raccourci 'Gustave Code' pour demarrer l'application
 echo ============================================
 pause

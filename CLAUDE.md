@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Start everything (recommended on Windows)
-pythonw launcher.py                    # Opens http://localhost:9000
+pythonw app.py                         # Native PyQt6 launcher window
 
 # Backend (port 8000)
 cd backend && uvicorn app.main:app --reload --port 8000
@@ -47,7 +47,7 @@ User (browser:3000) → React SPA → SSE POST /chat → FastAPI (8000)
                                               └── MemoryService → ChromaDB (8001)
                                                                 → SQLite (data/conversations.db)
 
-launcher.py (9000) — manages all 4 services via subprocess + dashboard.html UI
+app.py — Native PyQt6 launcher, manages all 4 services via subprocess
 ```
 
 ### SSE Streaming Pipeline
@@ -83,7 +83,7 @@ Per-profile inference params, context limits, timeouts, and keep_alive are all i
 
 ### Launcher
 
-`launcher.py` is a stdlib-only Python HTTP server (port 9000) that manages all 4 services as subprocesses. `dashboard.html` is the UI (read from disk on each request — hot-reloadable). Features: heartbeat watchdog (auto-shutdown when browser tab closes), log deduplication, ANSI stripping, noise filtering.
+`app.py` is a native PyQt6 desktop application that manages all 4 services as subprocesses. No HTTP server, no browser needed for the launcher. Features: real-time log panel with filters, service status dots, animated window resize, log deduplication, ANSI stripping, noise filtering. "Ouvrir Gustave Code" opens Chrome to localhost:3000.
 
 ## Important Conventions
 

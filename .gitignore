@@ -39,7 +39,7 @@ yarn-error.log*
 # ---------- Environment ----------
 # Real .env with secrets — NEVER commit
 .env
-# Keep .env.example and .env.docker (templates)
+# Keep .env.example (template)
 
 # ---------- Data / Databases ----------
 # SQLite databases and WAL files

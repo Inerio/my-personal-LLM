@@ -340,6 +340,8 @@ class AgentService:
 
             # Nettoyer les balises <think>...</think> de la réponse stockée
             clean_response = re.sub(r'<think>.*?</think>', '', full_response, flags=re.DOTALL).strip()
+            # Supprimer aussi les balises orphelines (ex: modèle qui mentionne <think> dans sa réponse)
+            clean_response = re.sub(r'</?think>', '', clean_response).strip()
 
             message_id = None
             needs_title = False
