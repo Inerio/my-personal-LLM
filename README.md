@@ -246,6 +246,14 @@ All settings are in `.env` (copy from `.env.example`):
 - **Database**: SQLite (conversations)
 - **Tools**: DuckDuckGo search, Tavily, Wikipedia, OpenWeatherMap, calculator, datetime
 
+## Support
+
+If you find this project useful, consider buying me a coffee!
+
+<a href="https://buymeacoffee.com/inerio" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50">
+</a>
+
 ## License
 
 This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
